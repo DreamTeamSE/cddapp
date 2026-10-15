@@ -1,10 +1,7 @@
 import type { SavedReading } from '../../types/measurement.ts';
+import type { SqlDatabase, SqlValue } from '../sql-database.ts';
 import type { CachedHealthRecord, HealthDataCache } from './aws-sync-service.ts';
 import { rolling24HourCutoff, type RollingPpgCache, type TimestampedPpgWindow } from './rolling-ppg-cache.ts';
-
-import type { SqlDatabase, SqlValue } from '../sql-database.ts';
-
-export type { SqlDatabase, SqlValue } from '../sql-database.ts';
 
 /**
  * pending → waiting for upload; synced → uploaded, kept until it ages out;
