@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { createAwsSyncService } from '../../services/sync/aws-sync-service.ts';
-import { createSqlitePpgCache, migratePpgCache } from '../../services/sync/sqlite-ppg-cache.ts';
+import { createSqlitePpgCache, DEFAULT_MAX_UNSYNCED_AGE_MS, migratePpgCache } from '../../services/sync/sqlite-ppg-cache.ts';
 import { openMemorySqlite } from '../support/node-sqlite.ts';
 
 const HOUR = 60 * 60 * 1000;
-const NOW = 100 * HOUR;
+const NOW = Date.UTC(2026, 9, 15, 12);
 
 async function setup(userId = 'user-a', db = openMemorySqlite()) {
   await migratePpgCache(db);
@@ -40,13 +40,13 @@ describe('SQLite rolling PPG cache', () => {
     assert.deepEqual((await cache.listPending(2)).map((record) => record.id), ['a', 'b']);
     await cache.markSynced(['a'], NOW);
     await cache.markFailed(['b'], 'HTTP 503');
-    assert.deepEqual(await cache.countByStatus(), { pending: 1, synced: 1, failed: 1 });
+    assert.deepEqual(await cache.countByStatus(), { pending: 1, synced: 1, failed: 1, corrupt: 0 });
     assert.deepEqual((await cache.listPending(10)).map((record) => record.id), ['c']);
     assert.equal(await cache.retryFailed(), 1);
     assert.deepEqual((await cache.listPending(10)).map((record) => record.id), ['b', 'c']);
   });
 
-  it('prunes uploaded windows older than 24 hours on every append but never deletes unsent ones', async () => {
+  it('prunes uploaded windows older than 24 hours on every append but keeps recent unsent ones', async () => {
     const { cache } = await setup();
     await cache.append({ id: 'old-synced', recordedAtMs: NOW - 30 * HOUR, values: [1] });
     await cache.append({ id: 'old-pending', recordedAtMs: NOW - 30 * HOUR, values: [1] });
@@ -100,6 +100,38 @@ describe('SQLite rolling PPG cache', () => {
     const result = await sync.sync();
     assert.deepEqual(uploaded, ['w1', 'w2']);
     assert.equal(result.syncedCount, 2);
-    assert.deepEqual(await cache.countByStatus(), { pending: 0, synced: 2, failed: 0 });
+    assert.deepEqual(await cache.countByStatus(), { pending: 0, synced: 2, failed: 0, corrupt: 0 });
+  });
+
+  it('drops windows that never uploaded once they pass the 7-day limit, so storage is bounded', async () => {
+    const { cache } = await setup();
+    const sevenDays = DEFAULT_MAX_UNSYNCED_AGE_MS;
+    await cache.append({ id: 'six-days', recordedAtMs: NOW - sevenDays + HOUR, values: [1] });
+    await cache.append({ id: 'eight-days', recordedAtMs: NOW - sevenDays - HOUR, values: [1] }); // removed by its own append's cleanup
+    assert.deepEqual((await cache.listPending(10)).map((record) => record.id), ['six-days']);
+    assert.throws(() => createSqlitePpgCache(openMemorySqlite(), { userId: 'u', maxUnsyncedAgeMs: HOUR }), RangeError);
+  });
+
+  it('sets aside an unreadable window instead of letting it block every upload behind it', async () => {
+    const { db, cache } = await setup();
+    await cache.append({ id: 'good-1', recordedAtMs: NOW - 2 * HOUR, values: [0.1] });
+    await cache.append({ id: 'good-2', recordedAtMs: NOW, values: [0.2] });
+    // Simulate on-disk damage to the oldest window, which would otherwise be read first.
+    await db.runAsync(
+      `INSERT INTO ppg_windows (user_id, id, recorded_at_ms, values_json, created_at_ms) VALUES ('user-a', 'damaged', ?, '{not json', ?)`,
+      [NOW - 3 * HOUR, NOW],
+    );
+    assert.deepEqual((await cache.listPending(1)).map((record) => record.id), ['good-1']);
+    assert.deepEqual((await cache.listPending(10)).map((record) => record.id), ['good-1', 'good-2']);
+    assert.deepEqual(await cache.countByStatus(), { pending: 2, synced: 0, failed: 0, corrupt: 1 });
+    assert.equal(await cache.retryFailed(), 0); // corrupt rows are never re-queued
+    assert.deepEqual((await cache.listSince(0)).map((window) => window.id), ['good-1', 'good-2']);
+  });
+
+  it('rejects windows stamped more than a day in the future (a broken clock would defeat pruning)', async () => {
+    const { cache } = await setup();
+    await assert.rejects(cache.append({ id: 'future', recordedAtMs: NOW + 25 * HOUR, values: [1] }), RangeError);
+    await cache.append({ id: 'slight-skew', recordedAtMs: NOW + HOUR, values: [1] });
+    assert.equal(await cache.countPending(), 1);
   });
 });
