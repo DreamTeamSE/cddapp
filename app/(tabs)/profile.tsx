@@ -1,4 +1,6 @@
+import { PillButton } from '@/components/auth/auth-ui';
 import SkinTonePicker from '@/components/skintone-picker';
+import { useAuth } from '@/context/auth-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { ComponentProps, useEffect, useState } from 'react';
 import {
@@ -79,6 +81,7 @@ function Header() {
 }
 
 export default function ProfilePage() {
+  const { signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(INITIAL_USER);
 
@@ -226,6 +229,10 @@ export default function ProfilePage() {
           </View>
         </View>
         
+        <View style={styles.section}>
+          <PillButton label="Sign out" variant="secondary" onPress={signOut} />
+        </View>
+
         <View style={{ height: 60 }} />
     </ScrollView>
     </TouchableWithoutFeedback>
