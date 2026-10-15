@@ -83,7 +83,7 @@ export default function OnboardingScreen() {
           const { feet: ft, inches: inch } = cmToFeetInches(draft.heightCm);
           setFeet(String(ft));
           setInches(String(inch));
-          setCm(String(Math.round(draft.heightCm)));
+          setCm(String(Math.round(draft.heightCm * 10) / 10));
         }
         if (draft.preferredWeightUnit) setWeightUnit(draft.preferredWeightUnit);
         if (draft.weightKg !== undefined) {
@@ -262,7 +262,7 @@ export default function OnboardingScreen() {
                 const { feet: ft, inches: inch } = cmToFeetInches(heightCm);
                 setFeet(String(ft));
                 setInches(String(inch));
-                setCm(String(Math.round(heightCm)));
+                setCm(String(Math.round(heightCm * 10) / 10));
               }
               setHeightUnit(unit);
             }}
@@ -300,8 +300,8 @@ export default function OnboardingScreen() {
               label="Height (cm)"
               value={cm}
               onChangeText={setCm}
-              keyboardType="number-pad"
-              maxLength={3}
+              keyboardType="decimal-pad"
+              maxLength={5}
               returnKeyType="next"
               submitBehavior="submit"
               onSubmitEditing={() => weightRef.current?.focus()}

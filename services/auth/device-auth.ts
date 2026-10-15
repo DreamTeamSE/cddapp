@@ -1,3 +1,6 @@
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 
@@ -46,6 +49,26 @@ const sqliteAccountStore: LocalAccountStore = {
     );
     return result.changes === 1;
   },
+  async getAttempts(email) {
+    const db = await getUserDataDb();
+    const row = await db.getFirstAsync<{ failures: number; locked_until_ms: number | null }>(
+      'SELECT failures, locked_until_ms FROM sign_in_attempts WHERE email = ?',
+      [email],
+    );
+    return { failures: row?.failures ?? 0, lockedUntilMs: row?.locked_until_ms ?? null };
+  },
+  async saveAttempts(email, attempts) {
+    const db = await getUserDataDb();
+    await db.runAsync(
+      `INSERT INTO sign_in_attempts (email, failures, locked_until_ms) VALUES (?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET failures = excluded.failures, locked_until_ms = excluded.locked_until_ms`,
+      [email, attempts.failures, attempts.lockedUntilMs],
+    );
+  },
+  async clearAttempts(email) {
+    const db = await getUserDataDb();
+    await db.runAsync('DELETE FROM sign_in_attempts WHERE email = ?', [email]);
+  },
 };
 
 const secureSessionStore: SessionStore = {
@@ -55,17 +78,17 @@ const secureSessionStore: SessionStore = {
 };
 
 /**
- * Salted SHA-256 is adequate only for a device-local development stand-in. The Cognito
- * adapter replaces this entirely; passwords then never touch app storage.
+ * Deliberately slow PBKDF2-HMAC-SHA256 (audited @noble/hashes); the async variant yields so the
+ * UI stays responsive. Cognito replaces this entirely; passwords then never touch app storage.
  */
-const hashPassword = (password: string, salt: string) =>
-  Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${password}`);
+const derivePassword = async (password: string, salt: string, iterations: number) =>
+  bytesToHex(await pbkdf2Async(sha256, password, salt, { c: iterations, dkLen: 32 }));
 
 export function createDeviceAuthService(): AuthService {
   return createLocalAuthService({
     accounts: sqliteAccountStore,
     sessions: secureSessionStore,
-    hashPassword,
+    derivePassword,
     randomId: Crypto.randomUUID,
   });
 }

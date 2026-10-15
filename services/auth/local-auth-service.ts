@@ -15,9 +15,15 @@ import {
 export interface LocalAccount {
   readonly userId: string;
   readonly email: string;
+  /** Encoded as `pbkdf2-sha256$<iterations>$<hex>` so the work factor can be raised later. */
   readonly passwordHash: string;
   readonly salt: string;
   readonly createdAtMs: number;
+}
+
+export interface SignInAttempts {
+  readonly failures: number;
+  readonly lockedUntilMs: number | null;
 }
 
 export interface LocalAccountStore {
@@ -25,6 +31,10 @@ export interface LocalAccountStore {
   readonly findById: (userId: string) => Promise<LocalAccount | null>;
   /** Resolves false (instead of throwing) when the email is already registered. */
   readonly insert: (account: LocalAccount) => Promise<boolean>;
+  /** Attempts are tracked per email whether or not an account exists, so lockouts reveal nothing. */
+  readonly getAttempts: (email: string) => Promise<SignInAttempts>;
+  readonly saveAttempts: (email: string, attempts: SignInAttempts) => Promise<void>;
+  readonly clearAttempts: (email: string) => Promise<void>;
 }
 
 /** Persists only the signed-in user ID (small enough for SecureStore's ~2KB value limit). */
@@ -37,9 +47,23 @@ export interface SessionStore {
 export interface LocalAuthDependencies {
   readonly accounts: LocalAccountStore;
   readonly sessions: SessionStore;
-  readonly hashPassword: (password: string, salt: string) => Promise<string>;
+  /** PBKDF2-HMAC-SHA256 returning a hex digest. */
+  readonly derivePassword: (password: string, salt: string, iterations: number) => Promise<string>;
   readonly randomId: () => string;
   readonly nowMs?: () => number;
+  readonly iterations?: number;
+}
+
+export const DEFAULT_PBKDF2_ITERATIONS = 100_000;
+/** Failures allowed before the first lockout; each later failure doubles the wait. */
+export const FREE_ATTEMPTS = 5;
+const FIRST_LOCKOUT_MS = 30_000;
+const MAX_LOCKOUT_MS = 15 * 60_000;
+const HASH_PREFIX = 'pbkdf2-sha256';
+
+export function lockoutDurationMs(failures: number): number {
+  if (failures < FREE_ATTEMPTS) return 0;
+  return Math.min(FIRST_LOCKOUT_MS * 2 ** (failures - FREE_ATTEMPTS), MAX_LOCKOUT_MS);
 }
 
 function toSession(account: LocalAccount): AuthSession {
@@ -53,8 +77,26 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+function parseStoredHash(stored: string): { iterations: number; hex: string } | null {
+  const [prefix, iterationText, hex] = stored.split('$');
+  const iterations = Number(iterationText);
+  if (prefix !== HASH_PREFIX || !Number.isInteger(iterations) || iterations <= 0 || !hex) return null;
+  return { iterations, hex };
+}
+
 export function createLocalAuthService(deps: LocalAuthDependencies): AuthService {
   const now = deps.nowMs ?? Date.now;
+  const iterations = deps.iterations ?? DEFAULT_PBKDF2_ITERATIONS;
+
+  const encode = async (password: string, salt: string) =>
+    `${HASH_PREFIX}$${iterations}$${await deps.derivePassword(password, salt, iterations)}`;
+
+  const verify = async (password: string, account: LocalAccount | null): Promise<boolean> => {
+    const parsed = account ? parseStoredHash(account.passwordHash) : null;
+    // Derive even when the account is missing so both failure paths take the same time.
+    const hex = await deps.derivePassword(password, account?.salt ?? 'missing-account', parsed?.iterations ?? iterations);
+    return Boolean(account && parsed && constantTimeEqual(hex, parsed.hex));
+  };
 
   const persist = async (account: LocalAccount): Promise<AuthSession> => {
     try { await deps.sessions.write(account.userId); }
@@ -80,11 +122,19 @@ export function createLocalAuthService(deps: LocalAuthDependencies): AuthService
 
     async signIn({ email, password }: Credentials) {
       if (!isValidEmail(email)) throw new AuthError('INVALID_EMAIL');
-      const account = await deps.accounts.findByEmail(normalizeEmail(email));
-      // Hash even when the account is missing so both failure paths cost the same.
-      const hash = await deps.hashPassword(password, account?.salt ?? 'missing-account');
-      if (!account || !constantTimeEqual(hash, account.passwordHash)) throw new AuthError('INVALID_CREDENTIALS');
-      return persist(account);
+      const normalized = normalizeEmail(email);
+      const attempts = await deps.accounts.getAttempts(normalized);
+      if (attempts.lockedUntilMs !== null && attempts.lockedUntilMs > now()) throw new AuthError('TOO_MANY_ATTEMPTS');
+
+      const account = await deps.accounts.findByEmail(normalized);
+      if (!(await verify(password, account))) {
+        const failures = attempts.failures + 1;
+        const wait = lockoutDurationMs(failures);
+        await deps.accounts.saveAttempts(normalized, { failures, lockedUntilMs: wait > 0 ? now() + wait : null });
+        throw new AuthError('INVALID_CREDENTIALS');
+      }
+      await deps.accounts.clearAttempts(normalized);
+      return persist(account as LocalAccount);
     },
 
     async signUp({ email, password }: Credentials) {
@@ -94,7 +144,7 @@ export function createLocalAuthService(deps: LocalAuthDependencies): AuthService
       const account: LocalAccount = {
         userId: deps.randomId(),
         email: normalizeEmail(email),
-        passwordHash: await deps.hashPassword(password, salt),
+        passwordHash: await encode(password, salt),
         salt,
         createdAtMs: now(),
       };

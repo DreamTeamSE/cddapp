@@ -40,7 +40,12 @@
           }
         }
       ],
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
       "onnxruntime-react-native",
       "expo-asset",
       "expo-secure-store"

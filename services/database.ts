@@ -89,3 +89,10 @@ export const getProfile = async (): Promise<UserProfile | null> => {
   const result = await db.getFirstAsync<UserProfile>('SELECT * FROM profile WHERE id = 1');
   return result;
 };
+
+/** Empties the shared profile row, e.g. on sign-out so the next account never sees it. */
+export const clearProfile = async (): Promise<void> => {
+  await initDatabase();
+  const db = await dbPromise;
+  await db.runAsync('DELETE FROM profile WHERE id = 1;');
+};

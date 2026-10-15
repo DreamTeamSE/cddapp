@@ -74,7 +74,7 @@ export function ageFromDateOfBirth(isoDate: string, now: Date): number {
 }
 
 export function formatHeight(cm: number, unit: HeightUnit): string {
-  if (unit === 'cm') return `${Math.round(cm)} cm`;
+  if (unit === 'cm') return `${Math.round(cm * 10) / 10} cm`;
   const { feet, inches } = cmToFeetInches(cm);
   return `${feet} ft. ${inches} in.`;
 }
@@ -138,5 +138,51 @@ export function finalizeHealthProfile(draft: HealthProfileDraft, now: Date): Hea
     preferredHeightUnit: draft.preferredHeightUnit ?? 'ft-in',
     preferredWeightUnit: draft.preferredWeightUnit ?? 'lb',
     skinTone: skinTone as number,
+  };
+}
+
+/**
+ * Parses the free-text height the Profile tab shows and edits: "5 ft. 10 in.", "5'10\"",
+ * "5 ft", or "178 cm". A bare number is ambiguous (feet? cm?) and returns null.
+ */
+export function parseHeightText(text: string): number | null {
+  const imperial = /^\s*(\d)\s*(?:ft\.?|feet|foot|')\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:in\.?|inches|inch|"|'')?)?\s*$/i.exec(text);
+  if (imperial) {
+    const inches = imperial[2] === undefined ? 0 : Number(imperial[2]);
+    return inches < 12 ? feetInchesToCm(Number(imperial[1]), inches) : null;
+  }
+  const metric = /^\s*(\d{2,3}(?:\.\d+)?)\s*cm\s*$/i.exec(text);
+  return metric ? Number(metric[1]) : null;
+}
+
+/** The shape the existing Profile tab edits (weight in lb, dates as MM/DD/YYYY, free-text height). */
+export interface ProfileTabValues {
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly phone: string;
+  readonly dob: string;
+  readonly weight: number;
+  readonly height: string;
+  readonly skinTone: number;
+}
+
+/**
+ * Applies Profile-tab edits to the canonical health profile. Each field is taken only if it
+ * parses and validates; anything unreadable keeps the previous canonical value.
+ */
+export function applyProfileTabEdits(current: HealthProfile, edits: ProfileTabValues, now: Date): HealthProfile {
+  const firstName = edits.firstName.trim();
+  const lastName = edits.lastName.trim();
+  const dateOfBirth = parseUsDate(edits.dob);
+  const heightCm = parseHeightText(edits.height);
+  const weightKg = lbToKg(edits.weight);
+  return {
+    ...current,
+    ...(validateName(firstName, lastName) === null ? { firstName, lastName } : {}),
+    ...(validatePhone(edits.phone) === null ? { phone: edits.phone.trim() } : {}),
+    ...(dateOfBirth && validateDateOfBirth(edits.dob, now) === null ? { dateOfBirth } : {}),
+    ...(heightCm !== null && validateHeightCm(heightCm) === null ? { heightCm } : {}),
+    ...(validateWeightKg(weightKg) === null ? { weightKg } : {}),
+    ...(validateSkinTone(edits.skinTone) === null ? { skinTone: edits.skinTone } : {}),
   };
 }

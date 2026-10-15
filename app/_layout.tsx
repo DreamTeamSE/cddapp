@@ -34,6 +34,15 @@ function RootNavigator() {
       <Stack.Protected guard={status === 'ready'}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        {/* ML research/test screens: reachable only when signed in, even by direct link. */}
+        <Stack.Screen name="ml-calibration-log" />
+        <Stack.Screen name="ml-memory" />
+        <Stack.Screen name="ml-ppg-chain" />
+        <Stack.Screen name="ml-ppg-expanded" />
+        <Stack.Screen name="ml-ppg-test" />
+        <Stack.Screen name="ml-profile" />
+        <Stack.Screen name="ml-recording" />
+        <Stack.Screen name="ml-test" />
       </Stack.Protected>
     </Stack>
   );

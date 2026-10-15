@@ -1,6 +1,15 @@
-import { initDatabase, saveProfile } from '../database.ts';
+import { clearProfile, initDatabase, saveProfile, type UserProfile } from '../database.ts';
 import { getUserDataDb } from '../user-data-db.ts';
-import { ageFromDateOfBirth, formatHeight, formatUsDate, kgToLb, type HealthProfile, type HealthProfileDraft } from './health-profile.ts';
+import {
+  ageFromDateOfBirth,
+  applyProfileTabEdits,
+  finalizeHealthProfile,
+  formatHeight,
+  formatUsDate,
+  kgToLb,
+  type HealthProfile,
+  type HealthProfileDraft,
+} from './health-profile.ts';
 
 export interface OnboardingState {
   readonly draft: HealthProfileDraft;
@@ -44,21 +53,8 @@ export async function saveOnboardingDraft(userId: string, draft: HealthProfileDr
   );
 }
 
-/**
- * Marks onboarding complete, then mirrors the data into the existing single-row profile
- * so the current Profile screen shows it without changes to its schema.
- */
-export async function completeOnboarding(userId: string, email: string, profile: HealthProfile): Promise<void> {
-  const db = await getUserDataDb();
-  const now = Date.now();
-  await db.runAsync(
-    `INSERT INTO health_profiles (user_id, draft_json, onboarding_step, completed_at_ms, updated_at_ms) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET draft_json = excluded.draft_json, onboarding_step = excluded.onboarding_step,
-       completed_at_ms = excluded.completed_at_ms, updated_at_ms = excluded.updated_at_ms`,
-    [userId, JSON.stringify(profile), -1, now, now],
-  );
-  await initDatabase();
-  await saveProfile({
+function toProfileTab(profile: HealthProfile, email: string): UserProfile {
+  return {
     firstName: profile.firstName,
     lastName: profile.lastName,
     phone: profile.phone,
@@ -68,5 +64,63 @@ export async function completeOnboarding(userId: string, email: string, profile:
     height: formatHeight(profile.heightCm, 'ft-in'),
     age: ageFromDateOfBirth(profile.dateOfBirth, new Date()),
     skinTone: profile.skinTone,
-  });
+  };
+}
+
+async function saveMirror(userId: string, profile: UserProfile): Promise<void> {
+  const db = await getUserDataDb();
+  await db.runAsync(
+    `INSERT INTO profile_mirrors (user_id, profile_json, updated_at_ms) VALUES (?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET profile_json = excluded.profile_json, updated_at_ms = excluded.updated_at_ms`,
+    [userId, JSON.stringify(profile), Date.now()],
+  );
+}
+
+/** Marks onboarding complete and shows the new profile on the Profile tab. */
+export async function completeOnboarding(userId: string, email: string, profile: HealthProfile): Promise<void> {
+  const db = await getUserDataDb();
+  const now = Date.now();
+  await db.runAsync(
+    `INSERT INTO health_profiles (user_id, draft_json, onboarding_step, completed_at_ms, updated_at_ms) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET draft_json = excluded.draft_json, onboarding_step = excluded.onboarding_step,
+       completed_at_ms = excluded.completed_at_ms, updated_at_ms = excluded.updated_at_ms`,
+    [userId, JSON.stringify(profile), -1, now, now],
+  );
+  const display = toProfileTab(profile, email);
+  await saveMirror(userId, display);
+  await initDatabase();
+  await saveProfile(display);
+}
+
+/**
+ * The existing Profile tab reads one shared row. Loading it with the signed-in user's own copy
+ * (or emptying it) on every sign-in keeps one account's details from showing up for another.
+ */
+export async function activateProfileForUser(userId: string): Promise<void> {
+  const db = await getUserDataDb();
+  const row = await db.getFirstAsync<{ profile_json: string }>('SELECT profile_json FROM profile_mirrors WHERE user_id = ?', [userId]);
+  if (!row) return clearProfile();
+  await initDatabase();
+  await saveProfile(JSON.parse(row.profile_json) as UserProfile);
+}
+
+/** Empties the shared Profile row when nobody is signed in. */
+export function deactivateProfile(): Promise<void> {
+  return clearProfile();
+}
+
+/**
+ * Saves Profile-tab edits for the signed-in user: the shared row, their own copy, and any
+ * fields that parse cleanly into the canonical health profile used by onboarding/ML.
+ */
+export async function saveProfileTabEdits(userId: string, profile: UserProfile): Promise<void> {
+  await initDatabase();
+  await saveProfile(profile);
+  await saveMirror(userId, profile);
+  const state = await getOnboardingState(userId);
+  const current = state.completed ? finalizeHealthProfile(state.draft, new Date()) : null;
+  if (!current) return;
+  const updated = applyProfileTabEdits(current, profile, new Date());
+  const db = await getUserDataDb();
+  await db.runAsync('UPDATE health_profiles SET draft_json = ?, updated_at_ms = ? WHERE user_id = ?', [JSON.stringify(updated), Date.now(), userId]);
 }

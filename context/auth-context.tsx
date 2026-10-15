@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import type { AuthService, AuthSession, Credentials } from '@/services/auth/auth-service';
 import { createDeviceAuthService } from '@/services/auth/device-auth';
-import { getOnboardingState } from '@/services/profile/health-profile-store';
+import { activateProfileForUser, deactivateProfile, getOnboardingState } from '@/services/profile/health-profile-store';
 
 /**
  * loading      → restoring the session at launch (splash stays up)
@@ -34,6 +34,9 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
   const applySession = useCallback(async (next: AuthSession | null) => {
     const current = ++generation.current;
     if (!next) {
+      try { await deactivateProfile(); }
+      catch (error) { console.error('Clearing the shared profile failed:', error); }
+      if (current !== generation.current) return;
       setSession(null);
       setStatus('signed-out');
       return;
@@ -41,8 +44,11 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
     let onboarded = false;
     try {
       onboarded = (await getOnboardingState(next.userId)).completed;
+      // Show only this account's details on the Profile tab before any tab mounts.
+      await activateProfileForUser(next.userId);
     } catch (error) {
-      console.error('Onboarding state load failed:', error); // fail closed: send the user through onboarding
+      console.error('Loading this account failed:', error); // fail closed: send the user through onboarding
+      onboarded = false;
     }
     if (current !== generation.current) return;
     setSession(next);

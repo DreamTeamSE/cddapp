@@ -17,7 +17,8 @@ import {
   View,
 } from 'react-native';
 // If the @ alias fails, use relative path: import { ... } from '../../services/database';
-import { getProfile, initDatabase, saveProfile, UserProfile } from '@/services/database';
+import { getProfile, initDatabase, UserProfile } from '@/services/database';
+import { saveProfileTabEdits } from '@/services/profile/health-profile-store';
 
 const INITIAL_USER: UserProfile = {
   firstName: 'First',
@@ -81,7 +82,7 @@ function Header() {
 }
 
 export default function ProfilePage() {
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(INITIAL_USER);
 
@@ -103,7 +104,7 @@ export default function ProfilePage() {
   const handleToggleEdit = async () => {
     if (isEditing) {
       try {
-        await saveProfile(profile);
+        if (session) await saveProfileTabEdits(session.userId, profile);
       } catch (err) {
         console.error("Save Error:", err);
       }

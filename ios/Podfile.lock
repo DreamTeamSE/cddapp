@@ -182,6 +182,8 @@ PODS:
     - Yoga
   - ExpoAsset (57.0.19):
     - ExpoModulesCore
+  - ExpoCrypto (57.0.4):
+    - ExpoModulesCore
   - ExpoDocumentPicker (57.0.3):
     - ExpoModulesCore
   - ExpoDomWebView (57.0.1):
@@ -242,6 +244,8 @@ PODS:
   - ExpoRouter (57.0.25):
     - ExpoModulesCore
     - RNScreens
+  - ExpoSecureStore (57.0.4):
+    - ExpoModulesCore
   - ExpoSplashScreen (57.0.9):
     - ExpoModulesCore
   - ExpoSQLite (57.0.4):
@@ -2494,6 +2498,7 @@ DEPENDENCIES:
   - expo-dev-menu (from `../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
   - ExpoDocumentPicker (from `../node_modules/expo-document-picker/ios`)
   - "ExpoDomWebView (from `../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)
@@ -2510,6 +2515,7 @@ DEPENDENCIES:
   - ExpoModulesWorklets (from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`)
   - ExpoModulesWorkletsAdapter (from `../node_modules/expo-modules-core`)
   - ExpoRouter (from `../node_modules/expo-router/ios`)
+  - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoSplashScreen (from `../node_modules/expo-splash-screen/ios`)
   - ExpoSQLite (from `../node_modules/expo-sqlite/ios`)
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
@@ -2627,6 +2633,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-dev-menu-interface/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoCrypto:
+    :path: "../node_modules/expo-crypto/ios"
   ExpoDocumentPicker:
     :path: "../node_modules/expo-document-picker/ios"
   ExpoDomWebView:
@@ -2659,6 +2667,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-modules-core"
   ExpoRouter:
     :path: "../node_modules/expo-router/ios"
+  ExpoSecureStore:
+    :path: "../node_modules/expo-secure-store/ios"
   ExpoSplashScreen:
     :path: "../node_modules/expo-splash-screen/ios"
   ExpoSQLite:
@@ -2852,6 +2862,7 @@ SPEC CHECKSUMS:
   expo-dev-menu: c3b4fc9723fe88118efa2dba3e8a27cf00edc53c
   expo-dev-menu-interface: 7a59e803916fbfd1b96c75ff91ea8dddac7e722f
   ExpoAsset: 78dbecc7bc9f60d839fb37ba8b10317b64779685
+  ExpoCrypto: 20c5dfad9f2c0b7831591fb75397d0c248cf7f8b
   ExpoDocumentPicker: 3cb0c283969538c03ced2b405e519c91abf39f8e
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: 28778f942725170102f7c6cf4dee05a526ddacd0
@@ -2863,13 +2874,14 @@ SPEC CHECKSUMS:
   ExpoLinearGradient: f08a0dea5ad3fe23042d15b1ced831312c9141b8
   ExpoLinking: d6e69c2972e62a9c439e021d0ece176d301d0574
   ExpoLogBox: 80957303325cd4439137765c90a87d7f22aaf2ff
-  ExpoModulesCore: 9ec7162908cb5e9d6a7503188cfdf4889fe935f6
+  ExpoModulesCore: bc16c0337f791f578df1798ecf14d72008f81342
   ExpoModulesJSI: 383849017851b1ebacbd78cfaa32b18b6152585e
   ExpoModulesWorklets: 1916bfde983876e6caf849398b91a0b492b73869
   ExpoModulesWorkletsAdapter: 85697593f57f6fd1375621d545c596dcd59dac1f
   ExpoRouter: 72006aae54ac9e2b17b7211214fe3c7c29a39e97
+  ExpoSecureStore: ff1fd5e073957417ba8f9dec0bebcbd55a60e747
   ExpoSplashScreen: e771da4f26d550ea4fd067d8fb942657e47bb846
-  ExpoSQLite: 1aa77d01fba0d1377b969d24f9845972d8fb0500
+  ExpoSQLite: c79d08339303003daf40c050401d39676b3a1eac
   ExpoSymbols: 37a3a6e5847edb08b83a5ee04d3b46525e205f00
   ExpoSystemUI: 05ee8d4aaba1b6af330f3621e19b39ff9f21e718
   ExpoUI: 04f60b7b9789e2cdc337747546b892e3dd8c17d6
@@ -2962,4 +2974,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 45402e5b9d7caf0e120e774d9b36ad6d9c0d4a69
 
-COCOAPODS: 1.17.0
+COCOAPODS: 1.16.2

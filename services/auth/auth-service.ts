@@ -16,6 +16,7 @@ export type AuthErrorCode =
   | 'WEAK_PASSWORD'
   | 'EMAIL_IN_USE'
   | 'INVALID_CREDENTIALS'
+  | 'TOO_MANY_ATTEMPTS'
   | 'STORAGE_FAILED'
   | 'UNKNOWN';
 
@@ -27,6 +28,7 @@ const FRIENDLY_MESSAGES: Record<AuthErrorCode, string> = {
   WEAK_PASSWORD: `Password must be at least ${MIN_PASSWORD_LENGTH} characters and include a letter and a number.`,
   EMAIL_IN_USE: 'An account with this email already exists. Try signing in instead.',
   INVALID_CREDENTIALS: 'Incorrect email or password.',
+  TOO_MANY_ATTEMPTS: 'Too many sign-in attempts. Wait a few minutes, then try again.',
   STORAGE_FAILED: 'Could not access secure storage on this device. Please try again.',
   UNKNOWN: 'Something went wrong. Please try again.',
 };

@@ -1,14 +1,27 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { pbkdf2Sync } from 'node:crypto';
 import { describe, it } from 'node:test';
 import { AuthError, toFriendlyAuthMessage } from '../../services/auth/auth-service.ts';
-import { createLocalAuthService, type LocalAccount, type LocalAccountStore, type SessionStore } from '../../services/auth/local-auth-service.ts';
+import {
+  createLocalAuthService,
+  FREE_ATTEMPTS,
+  lockoutDurationMs,
+  type LocalAccount,
+  type LocalAccountStore,
+  type SessionStore,
+  type SignInAttempts,
+} from '../../services/auth/local-auth-service.ts';
 
 function setup(overrides: { sessions?: Partial<SessionStore>; insert?: LocalAccountStore['insert'] } = {}) {
   const accounts = new Map<string, LocalAccount>();
+  const attempts = new Map<string, SignInAttempts>();
   let stored: string | null = null;
   let counter = 0;
+  let clock = 1_000;
   const store: LocalAccountStore = {
+    async getAttempts(email) { return attempts.get(email) ?? { failures: 0, lockedUntilMs: null }; },
+    async saveAttempts(email, value) { attempts.set(email, value); },
+    async clearAttempts(email) { attempts.delete(email); },
     async findByEmail(email) { return [...accounts.values()].find((account) => account.email === email) ?? null; },
     async findById(userId) { return accounts.get(userId) ?? null; },
     insert: overrides.insert ?? (async (account) => {
@@ -26,11 +39,13 @@ function setup(overrides: { sessions?: Partial<SessionStore>; insert?: LocalAcco
   const service = createLocalAuthService({
     accounts: store,
     sessions,
-    hashPassword: async (password, salt) => createHash('sha256').update(`${salt}:${password}`).digest('hex'),
+    // Node's built-in PBKDF2 stands in for @noble/hashes; few iterations keep tests fast.
+    derivePassword: async (password, salt, iterations) => pbkdf2Sync(password, salt, iterations, 32, 'sha256').toString('hex'),
+    iterations: 1_000,
     randomId: () => `id-${++counter}`,
-    nowMs: () => 1_000,
+    nowMs: () => clock,
   });
-  return { service, accounts, getStored: () => stored };
+  return { service, accounts, getStored: () => stored, advance: (ms: number) => { clock += ms; } };
 }
 
 describe('local auth service', () => {
@@ -43,6 +58,7 @@ describe('local auth service', () => {
     const saved = accounts.get(session.userId);
     if (!saved) throw new Error('account was not stored');
     assert.notEqual(saved.passwordHash, 'pulse1234');
+    assert.match(saved.passwordHash, /^pbkdf2-sha256\$1000\$[0-9a-f]{64}$/);
     assert.ok(saved.salt.length > 0);
   });
 
@@ -89,5 +105,35 @@ describe('local auth service', () => {
     assert.equal(error.code, 'STORAGE_FAILED');
     assert.doesNotMatch(toFriendlyAuthMessage(error), /SQLITE/);
     assert.equal(toFriendlyAuthMessage(new Error('raw internal detail')), 'Something went wrong. Please try again.');
+  });
+
+  it('locks sign-in after repeated failures, the same way for real and unknown emails', async () => {
+    const { service, advance } = setup();
+    await service.signUp({ email: 'pat@example.com', password: 'pulse1234' });
+    for (const email of ['pat@example.com', 'nobody@example.com']) {
+      for (let attempt = 0; attempt < FREE_ATTEMPTS; attempt += 1) {
+        await assert.rejects(service.signIn({ email, password: 'wrong-pass1' }), { code: 'INVALID_CREDENTIALS' });
+      }
+      await assert.rejects(service.signIn({ email, password: 'pulse1234' }), { code: 'TOO_MANY_ATTEMPTS' });
+    }
+    advance(lockoutDurationMs(FREE_ATTEMPTS) + 1);
+    const session = await service.signIn({ email: 'pat@example.com', password: 'pulse1234' });
+    assert.equal(session.email, 'pat@example.com');
+  });
+
+  it('doubles the lockout for each further failure, capped at 15 minutes, and resets after success', async () => {
+    assert.equal(lockoutDurationMs(FREE_ATTEMPTS - 1), 0);
+    assert.equal(lockoutDurationMs(FREE_ATTEMPTS), 30_000);
+    assert.equal(lockoutDurationMs(FREE_ATTEMPTS + 1), 60_000);
+    assert.equal(lockoutDurationMs(FREE_ATTEMPTS + 20), 15 * 60_000);
+    const { service } = setup();
+    await service.signUp({ email: 'pat@example.com', password: 'pulse1234' });
+    for (let attempt = 0; attempt < FREE_ATTEMPTS - 1; attempt += 1) {
+      await assert.rejects(service.signIn({ email: 'pat@example.com', password: 'nope12345' }));
+    }
+    await service.signIn({ email: 'pat@example.com', password: 'pulse1234' }); // success clears the count
+    for (let attempt = 0; attempt < FREE_ATTEMPTS - 1; attempt += 1) {
+      await assert.rejects(service.signIn({ email: 'pat@example.com', password: 'nope12345' }), { code: 'INVALID_CREDENTIALS' });
+    }
   });
 });
