@@ -1,5 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
+import { clearSharedProfileRow, listJournalEntries, upsertJournalEntry, USER_JOURNAL_SCHEMA } from './shared-profile-db.ts';
+
 // Type definition for our User to keep TS happy
 export interface UserProfile {
   id?: number;
@@ -27,6 +29,7 @@ export const initDatabase = async (): Promise<void> => {
   const db = await dbPromise;
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA secure_delete = ON;
     CREATE TABLE IF NOT EXISTS profile (
       id INTEGER PRIMARY KEY NOT NULL,
       firstName TEXT,
@@ -45,15 +48,30 @@ export const initDatabase = async (): Promise<void> => {
       notes TEXT NOT NULL DEFAULT '',
       updatedAtMs INTEGER NOT NULL
     );
+    ${USER_JOURNAL_SCHEMA}
   `);
+};
+
+/**
+ * The signed-in account whose journal is read and written. It is replaced when the next account
+ * signs in (not cleared at sign-out) so a journal edit the screen flushes while unmounting during
+ * sign-out still lands in the account that made it.
+ */
+let journalUserId: string | null = null;
+
+export const setJournalUser = (userId: string): void => {
+  journalUserId = userId;
+};
+
+const requireJournalUser = (): string => {
+  if (!journalUserId) throw new Error('No signed-in account for the journal.');
+  return journalUserId;
 };
 
 export const getJournalEntries = async (): Promise<readonly JournalEntry[]> => {
   await initDatabase();
   const db = await dbPromise;
-  return db.getAllAsync<JournalEntry>(
-    'SELECT date, bp, notes, updatedAtMs FROM journal_entries ORDER BY date DESC;'
-  );
+  return listJournalEntries(db, requireJournalUser());
 };
 
 export const saveJournalEntry = async (
@@ -64,15 +82,7 @@ export const saveJournalEntry = async (
 ): Promise<void> => {
   await initDatabase();
   const db = await dbPromise;
-  await db.runAsync(
-    `INSERT INTO journal_entries (date, bp, notes, updatedAtMs)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(date) DO UPDATE SET
-       bp = excluded.bp,
-       notes = excluded.notes,
-       updatedAtMs = excluded.updatedAtMs;`,
-    [date, bp, notes, updatedAtMs]
-  );
+  await upsertJournalEntry(db, requireJournalUser(), { date, bp, notes, updatedAtMs });
 };
 
 export const saveProfile = async (user: UserProfile): Promise<void> => {
@@ -90,15 +100,8 @@ export const getProfile = async (): Promise<UserProfile | null> => {
   return result;
 };
 
-/**
- * Empties the shared profile row on sign-out so the next account never sees it. VACUUM rebuilds
- * the file without leftover fragments of earlier rows, and the checkpoint empties the WAL, so no
- * copy of the signed-out user's details stays on disk.
- */
+/** Empties the shared profile row on sign-out so the next account never sees it. */
 export const clearProfile = async (): Promise<void> => {
   await initDatabase();
-  const db = await dbPromise;
-  await db.runAsync('DELETE FROM profile WHERE id = 1;');
-  await db.execAsync('VACUUM;');
-  await db.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
+  await clearSharedProfileRow(await dbPromise);
 };

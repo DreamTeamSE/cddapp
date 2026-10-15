@@ -33,6 +33,9 @@ export interface LocalAccountStore {
   readonly insert: (account: LocalAccount) => Promise<boolean>;
   /** Attempts are tracked per email whether or not an account exists, so lockouts reveal nothing. */
   readonly getAttempts: (email: string) => Promise<SignInAttempts>;
+  /** Highest PBKDF2 iteration count among stored hashes (0 when there are none). */
+  readonly maxPasswordIterations: () => Promise<number>;
+  readonly updatePasswordHash: (userId: string, passwordHash: string) => Promise<void>;
   readonly saveAttempts: (email: string, attempts: SignInAttempts) => Promise<void>;
   readonly clearAttempts: (email: string) => Promise<void>;
 }
@@ -78,7 +81,7 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function parseStoredHash(stored: string): { iterations: number; hex: string } | null {
+export function parseStoredHash(stored: string): { iterations: number; hex: string } | null {
   const [prefix, iterationText, hex] = stored.split('$');
   const iterations = Number(iterationText);
   if (prefix !== HASH_PREFIX || !Number.isInteger(iterations) || iterations <= 0 || !hex) return null;
@@ -92,11 +95,27 @@ export function createLocalAuthService(deps: LocalAuthDependencies): AuthService
   const encode = async (password: string, salt: string) =>
     `${HASH_PREFIX}$${iterations}$${await deps.derivePassword(password, salt, iterations)}`;
 
+  /**
+   * Every attempt costs the same as deriving at the highest stored iteration count, whether the
+   * email exists or not: accounts hashed with fewer iterations are padded with a throwaway
+   * derivation for the difference, so response time can't reveal which emails are registered.
+   */
   const verify = async (password: string, account: LocalAccount | null): Promise<boolean> => {
     const parsed = account ? parseStoredHash(account.passwordHash) : null;
-    // Derive even when the account is missing so both failure paths take the same time.
-    const hex = await deps.derivePassword(password, account?.salt ?? 'missing-account', parsed?.iterations ?? iterations);
+    const target = Math.max(iterations, await deps.accounts.maxPasswordIterations());
+    const own = parsed?.iterations ?? target;
+    const hex = await deps.derivePassword(password, account?.salt ?? 'missing-account', own);
+    if (target > own) await deps.derivePassword(password, 'timing-padding', target - own);
     return Boolean(account && parsed && constantTimeEqual(hex, parsed.hex));
+  };
+
+  // Sign-in attempts run one at a time so concurrent submits can't each read the same failure
+  // count and under-count toward the lockout.
+  let signInQueue: Promise<unknown> = Promise.resolve();
+  const serialized = <T>(task: () => Promise<T>): Promise<T> => {
+    const run = signInQueue.then(task, task);
+    signInQueue = run.catch(() => undefined);
+    return run;
   };
 
   const persist = async (account: LocalAccount): Promise<AuthSession> => {
@@ -121,7 +140,7 @@ export function createLocalAuthService(deps: LocalAuthDependencies): AuthService
       }
     },
 
-    async signIn({ email, password }: Credentials) {
+    signIn: ({ email, password }: Credentials) => serialized(async () => {
       if (!isValidEmail(email)) throw new AuthError('INVALID_EMAIL');
       const normalized = normalizeEmail(email);
       const attempts = await deps.accounts.getAttempts(normalized);
@@ -135,8 +154,13 @@ export function createLocalAuthService(deps: LocalAuthDependencies): AuthService
         throw new AuthError('INVALID_CREDENTIALS');
       }
       await deps.accounts.clearAttempts(normalized);
-      return persist(account as LocalAccount);
-    },
+      const signedIn = account as LocalAccount;
+      // Re-save hashes made with an older iteration count at the current one.
+      if (parseStoredHash(signedIn.passwordHash)?.iterations !== iterations) {
+        await deps.accounts.updatePasswordHash(signedIn.userId, await encode(password, signedIn.salt));
+      }
+      return persist(signedIn);
+    }),
 
     async signUp({ email, password }: Credentials) {
       if (!isValidEmail(email)) throw new AuthError('INVALID_EMAIL');

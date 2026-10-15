@@ -5,11 +5,11 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { AuthHeader } from '@/components/auth/auth-header';
 import { AuthColors, ErrorBanner, FormField, FormScreen, PillButton } from '@/components/auth/auth-ui';
 import { useAuth } from '@/context/auth-context';
-import { isStrongEnoughPassword, isValidEmail, MIN_PASSWORD_LENGTH, toFriendlyAuthMessage } from '@/services/auth/auth-service';
+import { authErrorMessage, isStrongEnoughPassword, isValidEmail, MIN_PASSWORD_LENGTH, toFriendlyAuthMessage } from '@/services/auth/auth-service';
 
 function validate(email: string, password: string, confirm: string): string | null {
-  if (!isValidEmail(email)) return 'Enter a valid email address.';
-  if (!isStrongEnoughPassword(password)) return `Password must be at least ${MIN_PASSWORD_LENGTH} characters and include a letter and a number.`;
+  if (!isValidEmail(email)) return authErrorMessage('INVALID_EMAIL');
+  if (!isStrongEnoughPassword(password)) return authErrorMessage('WEAK_PASSWORD');
   if (password !== confirm) return 'Passwords do not match.';
   return null;
 }

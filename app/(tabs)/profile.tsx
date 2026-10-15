@@ -1,6 +1,6 @@
 import { PillButton } from '@/components/auth/auth-ui';
 import SkinTonePicker from '@/components/skintone-picker';
-import { useAuth } from '@/context/auth-context';
+import { useAuth, useSignOutHandler } from '@/context/auth-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { ComponentProps, useEffect, useState } from 'react';
 import {
@@ -82,7 +82,8 @@ function Header() {
 }
 
 export default function ProfilePage() {
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
+  const handleSignOut = useSignOutHandler();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(INITIAL_USER);
 
@@ -104,7 +105,7 @@ export default function ProfilePage() {
   const handleToggleEdit = async () => {
     if (isEditing) {
       try {
-        if (session) await saveProfileTabEdits(session.userId, profile);
+        if (session) setProfile(await saveProfileTabEdits(session.userId, session.email, profile));
       } catch (err) {
         console.error("Save Error:", err);
       }
@@ -231,7 +232,7 @@ export default function ProfilePage() {
         </View>
         
         <View style={styles.section}>
-          <PillButton label="Sign out" variant="secondary" onPress={signOut} />
+          <PillButton label="Sign out" variant="secondary" onPress={handleSignOut} />
         </View>
 
         <View style={{ height: 60 }} />

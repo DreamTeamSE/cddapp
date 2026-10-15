@@ -2,6 +2,8 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 
+import { isWrongKeyError } from './sql-database.ts';
+
 /**
  * Opens SQLite files encrypted with SQLCipher (enabled via the expo-sqlite config plugin).
  * One random 256-bit key per install lives in the keychain; it is readable after the first
@@ -41,8 +43,9 @@ async function openWithKey(name: string, hexKey: string): Promise<SQLite.SQLiteD
 }
 
 /**
- * If the file can't be read with this install's key (an older plaintext dev database, or the
- * keychain was reset), it is deleted and recreated: unreadable data is useless either way.
+ * If SQLite reports the file is not a database under this install's key (an older plaintext dev
+ * database, or the keychain was reset), it is deleted and recreated: unreadable data is useless
+ * either way. Every other failure is rethrown so a transient error never destroys data.
  */
 export async function openEncryptedDatabase(name: string): Promise<SQLite.SQLiteDatabase> {
   if (!keyPromise) keyPromise = loadOrCreateKey().catch((error) => { keyPromise = null; throw error; });
@@ -52,6 +55,7 @@ export async function openEncryptedDatabase(name: string): Promise<SQLite.SQLite
   try {
     db = await openWithKey(name, hexKey);
   } catch (error) {
+    if (!isWrongKeyError(error)) throw error;
     console.warn(`${name} could not be opened with this device's key; recreating it.`, error);
     await SQLite.deleteDatabaseAsync(name);
     db = await openWithKey(name, hexKey);

@@ -1,7 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 
-import type { AuthService, AuthSession, Credentials } from '@/services/auth/auth-service';
+import { toFriendlyAuthMessage, type AuthService, type AuthSession, type Credentials } from '@/services/auth/auth-service';
 import { createDeviceAuthService } from '@/services/auth/device-auth';
+import { resolveSignedInStatus } from '@/services/auth/session-gate';
 import { activateProfileForUser, deactivateProfile, getOnboardingState } from '@/services/profile/health-profile-store';
 
 /**
@@ -17,7 +19,8 @@ interface AuthContextValue {
   readonly session: AuthSession | null;
   readonly signIn: (credentials: Credentials) => Promise<void>;
   readonly signUp: (credentials: Credentials) => Promise<void>;
-  readonly signOut: () => Promise<void>;
+  /** Resolves to a user-facing error message if signing out failed, otherwise null. */
+  readonly signOut: () => Promise<string | null>;
   /** Called by onboarding after its data is committed. */
   readonly markOnboarded: () => void;
 }
@@ -41,18 +44,15 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
       setStatus('signed-out');
       return;
     }
-    let onboarded = false;
-    try {
-      onboarded = (await getOnboardingState(next.userId)).completed;
-      // Show only this account's details on the Profile tab before any tab mounts.
-      await activateProfileForUser(next.userId);
-    } catch (error) {
-      console.error('Loading this account failed:', error); // fail closed: send the user through onboarding
-      onboarded = false;
-    }
+    // Load this account's Profile-tab details before any tab mounts; only the onboarding
+    // lookup decides the route.
+    const nextStatus = await resolveSignedInStatus(next.userId, {
+      isOnboarded: async (userId) => (await getOnboardingState(userId)).completed,
+      showProfile: (userId) => activateProfileForUser(userId, next.email),
+    });
     if (current !== generation.current) return;
     setSession(next);
-    setStatus(onboarded ? 'ready' : 'onboarding');
+    setStatus(nextStatus);
   }, []);
 
   useEffect(() => {
@@ -66,8 +66,13 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
     signIn: async (credentials) => applySession(await auth.signIn(credentials)),
     signUp: async (credentials) => applySession(await auth.signUp(credentials)),
     signOut: async () => {
-      await auth.signOut();
+      try {
+        await auth.signOut();
+      } catch (error) {
+        return toFriendlyAuthMessage(error);
+      }
       await applySession(null);
+      return null;
     },
     markOnboarded: () => {
       generation.current += 1;
@@ -76,6 +81,15 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
   }), [auth, status, session, applySession]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** A Sign out button handler that tells the user when signing out failed. */
+export function useSignOutHandler(): () => Promise<void> {
+  const { signOut } = useAuth();
+  return useCallback(async () => {
+    const error = await signOut();
+    if (error) Alert.alert('Could not sign out', error);
+  }, [signOut]);
 }
 
 export function useAuth(): AuthContextValue {

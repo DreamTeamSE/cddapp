@@ -44,6 +44,11 @@ export class AuthError extends Error {
   }
 }
 
+/** The user-facing message for a code, so screens validating before submit use the same wording. */
+export function authErrorMessage(code: AuthErrorCode): string {
+  return FRIENDLY_MESSAGES[code];
+}
+
 export function toFriendlyAuthMessage(error: unknown): string {
   return error instanceof AuthError ? error.message : FRIENDLY_MESSAGES.UNKNOWN;
 }

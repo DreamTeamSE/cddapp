@@ -6,13 +6,14 @@ import {
   createLocalAuthService,
   FREE_ATTEMPTS,
   lockoutDurationMs,
+  parseStoredHash,
   type LocalAccount,
   type LocalAccountStore,
   type SessionStore,
   type SignInAttempts,
 } from '../../services/auth/local-auth-service.ts';
 
-function setup(overrides: { sessions?: Partial<SessionStore>; insert?: LocalAccountStore['insert'] } = {}) {
+function setup(overrides: { sessions?: Partial<SessionStore>; insert?: LocalAccountStore['insert']; iterations?: number } = {}) {
   const accounts = new Map<string, LocalAccount>();
   const attempts = new Map<string, SignInAttempts>();
   let stored: string | null = null;
@@ -22,6 +23,13 @@ function setup(overrides: { sessions?: Partial<SessionStore>; insert?: LocalAcco
     async getAttempts(email) { return attempts.get(email) ?? { failures: 0, lockedUntilMs: null }; },
     async saveAttempts(email, value) { attempts.set(email, value); },
     async clearAttempts(email) { attempts.delete(email); },
+    async maxPasswordIterations() {
+      return [...accounts.values()].reduce((max, account) => Math.max(max, parseStoredHash(account.passwordHash)?.iterations ?? 0), 0);
+    },
+    async updatePasswordHash(userId, passwordHash) {
+      const account = accounts.get(userId);
+      if (account) accounts.set(userId, { ...account, passwordHash });
+    },
     async findByEmail(email) { return [...accounts.values()].find((account) => account.email === email) ?? null; },
     async findById(userId) { return accounts.get(userId) ?? null; },
     insert: overrides.insert ?? (async (account) => {
@@ -36,16 +44,20 @@ function setup(overrides: { sessions?: Partial<SessionStore>; insert?: LocalAcco
     clear: async () => { stored = null; },
     ...overrides.sessions,
   };
+  const derived: number[] = [];
   const service = createLocalAuthService({
     accounts: store,
     sessions,
     // Node's built-in PBKDF2 stands in for @noble/hashes; few iterations keep tests fast.
-    derivePassword: async (password, salt, iterations) => pbkdf2Sync(password, salt, iterations, 32, 'sha256').toString('hex'),
-    iterations: 1_000,
+    derivePassword: async (password, salt, iterations) => {
+      derived.push(iterations);
+      return pbkdf2Sync(password, salt, iterations, 32, 'sha256').toString('hex');
+    },
+    iterations: overrides.iterations ?? 1_000,
     randomId: () => `id-${++counter}`,
     nowMs: () => clock,
   });
-  return { service, accounts, getStored: () => stored, advance: (ms: number) => { clock += ms; } };
+  return { service, store, accounts, attempts, derived, getStored: () => stored, advance: (ms: number) => { clock += ms; } };
 }
 
 describe('local auth service', () => {
@@ -135,5 +147,43 @@ describe('local auth service', () => {
     for (let attempt = 0; attempt < FREE_ATTEMPTS - 1; attempt += 1) {
       await assert.rejects(service.signIn({ email: 'pat@example.com', password: 'nope12345' }), { code: 'INVALID_CREDENTIALS' });
     }
+  });
+
+  it('spends the same work on real and unknown emails even when stored iteration counts differ', async () => {
+    const { service, accounts, derived } = setup();
+    const created = await service.signUp({ email: 'old@example.com', password: 'pulse1234' });
+    // Simulate an account hashed under an older, higher work factor.
+    const legacy = accounts.get(created.userId);
+    if (!legacy) throw new Error('missing account');
+    accounts.set(created.userId, { ...legacy, passwordHash: `pbkdf2-sha256$3000$${pbkdf2Sync('pulse1234', legacy.salt, 3000, 32, 'sha256').toString('hex')}` });
+    await service.signUp({ email: 'new@example.com', password: 'pulse1234' });
+    const workFor = async (email: string) => {
+      derived.length = 0;
+      await service.signIn({ email, password: 'wrong-pass1' }).catch(() => undefined);
+      return derived.reduce((sum, count) => sum + count, 0);
+    };
+    assert.equal(await workFor('old@example.com'), 3000);
+    assert.equal(await workFor('new@example.com'), 3000); // padded up to the slowest stored hash
+    assert.equal(await workFor('nobody@example.com'), 3000);
+  });
+
+  it('re-saves an older hash at the current iteration count after a successful sign-in', async () => {
+    const { service, accounts } = setup();
+    const created = await service.signUp({ email: 'pat@example.com', password: 'pulse1234' });
+    const legacy = accounts.get(created.userId);
+    if (!legacy) throw new Error('missing account');
+    accounts.set(created.userId, { ...legacy, passwordHash: `pbkdf2-sha256$3000$${pbkdf2Sync('pulse1234', legacy.salt, 3000, 32, 'sha256').toString('hex')}` });
+    await service.signIn({ email: 'pat@example.com', password: 'pulse1234' });
+    assert.equal(parseStoredHash(accounts.get(created.userId)?.passwordHash ?? '')?.iterations, 1_000);
+    await service.signOut();
+    assert.equal((await service.signIn({ email: 'pat@example.com', password: 'pulse1234' })).userId, created.userId);
+  });
+
+  it('counts every failure when sign-in attempts are submitted at the same time', async () => {
+    const { service, attempts } = setup();
+    await service.signUp({ email: 'pat@example.com', password: 'pulse1234' });
+    const results = await Promise.allSettled(Array.from({ length: 4 }, () => service.signIn({ email: 'pat@example.com', password: 'wrong-pass1' })));
+    assert.ok(results.every((result) => result.status === 'rejected'));
+    assert.equal(attempts.get('pat@example.com')?.failures, 4);
   });
 });

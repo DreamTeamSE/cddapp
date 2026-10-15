@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { AuthColors, ErrorBanner, FormField, FormScreen, PillButton } from '@/components/auth/auth-ui';
 import { SKIN_TONES } from '@/components/skintone-picker';
-import { useAuth } from '@/context/auth-context';
+import { useAuth, useSignOutHandler } from '@/context/auth-context';
 import {
   cmToFeetInches,
   feetInchesToCm,
@@ -41,7 +41,8 @@ function maskDate(input: string): string {
 const numberOrNaN = (text: string) => (text.trim() === '' ? NaN : Number(text));
 
 export default function OnboardingScreen() {
-  const { session, signOut, markOnboarded } = useAuth();
+  const { session, markOnboarded } = useAuth();
+  const handleSignOut = useSignOutHandler();
   const userId = session?.userId ?? '';
 
   const [hydrated, setHydrated] = useState(false);
@@ -171,7 +172,7 @@ export default function OnboardingScreen() {
       {step > 0 ? (
         <PillButton label="Back" variant="secondary" disabled={saving} onPress={() => goTo(step - 1)} />
       ) : (
-        <PillButton label="Sign out" variant="secondary" onPress={signOut} />
+        <PillButton label="Sign out" variant="secondary" onPress={handleSignOut} />
       )}
     </>
   );

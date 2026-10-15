@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { getUserDataDb } from '../user-data-db.ts';
 import type { AuthService } from './auth-service.ts';
-import { createLocalAuthService, type LocalAccount, type LocalAccountStore, type SessionStore } from './local-auth-service.ts';
+import { createLocalAuthService, parseStoredHash, type LocalAccount, type LocalAccountStore, type SessionStore } from './local-auth-service.ts';
 
 const SESSION_KEY = 'cdd.auth.userId';
 const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
@@ -64,6 +64,15 @@ const sqliteAccountStore: LocalAccountStore = {
        ON CONFLICT(email) DO UPDATE SET failures = excluded.failures, locked_until_ms = excluded.locked_until_ms`,
       [email, attempts.failures, attempts.lockedUntilMs],
     );
+  },
+  async maxPasswordIterations() {
+    const db = await getUserDataDb();
+    const rows = await db.getAllAsync<{ password_hash: string }>('SELECT password_hash FROM local_accounts');
+    return rows.reduce((max, row) => Math.max(max, parseStoredHash(row.password_hash)?.iterations ?? 0), 0);
+  },
+  async updatePasswordHash(userId, passwordHash) {
+    const db = await getUserDataDb();
+    await db.runAsync('UPDATE local_accounts SET password_hash = ? WHERE user_id = ?', [passwordHash, userId]);
   },
   async clearAttempts(email) {
     const db = await getUserDataDb();

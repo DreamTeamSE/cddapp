@@ -5,7 +5,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { AuthHeader } from '@/components/auth/auth-header';
 import { AuthColors, ErrorBanner, FormField, FormScreen, PillButton } from '@/components/auth/auth-ui';
 import { useAuth } from '@/context/auth-context';
-import { isValidEmail, toFriendlyAuthMessage } from '@/services/auth/auth-service';
+import { authErrorMessage, isValidEmail, toFriendlyAuthMessage } from '@/services/auth/auth-service';
 
 export default function SignInScreen() {
   const { signIn } = useAuth();
@@ -17,7 +17,7 @@ export default function SignInScreen() {
 
   const handleSubmit = async () => {
     if (submitting) return;
-    if (!isValidEmail(email)) return setError('Enter a valid email address.');
+    if (!isValidEmail(email)) return setError(authErrorMessage('INVALID_EMAIL'));
     if (!password) return setError('Enter your password.');
     setError(null);
     setSubmitting(true);
