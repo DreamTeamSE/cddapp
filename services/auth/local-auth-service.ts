@@ -54,7 +54,8 @@ export interface LocalAuthDependencies {
   readonly iterations?: number;
 }
 
-export const DEFAULT_PBKDF2_ITERATIONS = 100_000;
+/** Pure-JS PBKDF2 on Hermes measured ~12.5 s at 100k in a debug build; 10k keeps sign-in near 1 s. Cognito replaces this. */
+export const DEFAULT_PBKDF2_ITERATIONS = 10_000;
 /** Failures allowed before the first lockout; each later failure doubles the wait. */
 export const FREE_ATTEMPTS = 5;
 const FIRST_LOCKOUT_MS = 30_000;

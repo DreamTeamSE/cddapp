@@ -90,9 +90,15 @@ export const getProfile = async (): Promise<UserProfile | null> => {
   return result;
 };
 
-/** Empties the shared profile row, e.g. on sign-out so the next account never sees it. */
+/**
+ * Empties the shared profile row on sign-out so the next account never sees it. VACUUM rebuilds
+ * the file without leftover fragments of earlier rows, and the checkpoint empties the WAL, so no
+ * copy of the signed-out user's details stays on disk.
+ */
 export const clearProfile = async (): Promise<void> => {
   await initDatabase();
   const db = await dbPromise;
   await db.runAsync('DELETE FROM profile WHERE id = 1;');
+  await db.execAsync('VACUUM;');
+  await db.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
 };
