@@ -14,6 +14,16 @@ Test: `npm test -- --test-name-pattern='blood-pressure inference'` (or run the i
 
 `RollingPpgCache` defines append, list-since, and prune operations; `rolling24HourCutoff(nowMs)` supplies the retention boundary. A local store should retain timestamped PPG windows for the last 24 hours and expose pending entries through `HealthDataCache` so they can be synchronized.
 
+`createSqlitePpgCache` (`services/sync/sqlite-ppg-cache.ts`, KAN-20) implements both contracts on SQLite. `openDevicePpgCache(userId)` in `device-ppg-cache.ts` opens it on the phone (`ppg-cache.db`).
+
+- **Per user:** rows are scoped to a user ID.
+- **Status:** each window is `pending`, `synced` or `failed`. `markFailed` records the error, and `retryFailed` returns failed windows to `pending`.
+- **Upload order:** `listPending` returns the oldest windows first.
+- **Duplicates:** re-sending the same window ID is ignored.
+- **Cleanup:** every append deletes `synced` and `failed` windows older than 24 hours. **Pending windows are never deleted automatically**, so data recorded while offline isn't lost before it uploads.
+
+Test: `npm test -- --test-name-pattern='SQLite rolling PPG cache'`. The tests run real SQL through Node's built-in `node:sqlite`, using the wrapper in `tests/support/node-sqlite.ts`. One test drives `AwsSyncService` end to end against this cache.
+
 `AwsSyncService` reads bounded pending batches, writes each batch through `HealthDataRemoteStore`, and marks local records synchronized only after remote success. It publishes `idle`/`syncing`/`error`, `pendingCount`, `lastSyncAtMs`, and `lastError` for app state. Connectivity is injected through `isOnline`; failed writes use bounded exponential retry, preserving pending local data if retries fail.
 
 `createDynamoDbRemoteStore` adapts an injected `DynamoDbWriter` and provisioned table name. DynamoDB provisioning, AWS credentials, authorization, and the production transport (for example a protected API/Lambda rather than embedding broad AWS credentials in the app) are external dependencies. No table name, credentials, AWS SDK, or fake cloud write is embedded here.
