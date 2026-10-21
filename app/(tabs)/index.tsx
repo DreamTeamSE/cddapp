@@ -1,4 +1,5 @@
 import BpCsvCard from '@/components/BpCsvCard';
+import BpLiveCard from '@/components/BpLiveCard';
 import BpSmokeTestLink from '@/components/BpSmokeTestLink';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -145,6 +146,7 @@ export default function HomePage() {
       <Header />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <BpLiveCard />
         <BpCsvCard />
         <BpSmokeTestLink />
         <View style={styles.bodyWrapper}>
