@@ -42,7 +42,13 @@
       ],
       "expo-sqlite",
       "onnxruntime-react-native",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-ble-plx",
+        {
+          "bluetoothAlwaysPermission": "Allow cddapp to connect to your CDD wearable."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

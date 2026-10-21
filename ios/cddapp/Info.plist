@@ -83,5 +83,7 @@
 	<string>Automatic</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allow cddapp to connect to your CDD wearable.</string>
 </dict>
 </plist>
