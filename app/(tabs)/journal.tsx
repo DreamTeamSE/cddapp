@@ -90,7 +90,8 @@ export default function JournalPage() {
 
   const updateEntry = (field: keyof JournalEntry, value: string) => {
     if (!selected) return;
-    const entry = { bp: '', notes: '', ...journalEntries[selected], [field]: value };
+    const previous = journalEntries[selected] ?? { bp: '', notes: '' };
+    const entry = { ...previous, [field]: value };
     setJournalEntries(prev => ({ ...prev, [selected]: entry }));
     pendingSave.current = { date: selected, entry };
     setSaveStatus('saving');

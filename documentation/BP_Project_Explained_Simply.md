@@ -1,5 +1,7 @@
 # Your blood-pressure app, explained simply
 
+> **Historical note (Nov 2026):** cBP-Tnet phone-test sections below are historical. Active inference is **AnyPPG** only. See `archive/cbp-tnet/`.
+
 Updated September 25, 2026. This guide explains the results you supplied. The detailed engineering report contains the full measurements and research history.
 
 ## 1. What have we actually built?

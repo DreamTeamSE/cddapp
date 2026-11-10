@@ -1,11 +1,13 @@
 # Service scaffold
 
-Only `database.ts` currently implements an application service (existing profile storage).
-The device, prediction, readings, coordinator, and demo modules are placeholders.
-Shared measurement types, errors, clocks, and normalized-packet validation are implemented.
-Importing them does not connect a device, open a database, run a migration, start a timer,
-generate a prediction, or start the pipeline. Calling a placeholder throws
-`ServiceNotImplementedError`; there are no silent successes or fabricated readings.
+`database.ts` implements profile/journal SQLite storage. Active BP inference lives in
+`anyppg/` (local ONNX Runtime + ridge head). Shared measurement types, BLE reassembly,
+packet validation, the synchronized PPG/IMU contract (`recordings/syncContract`),
+quality gating (`recordings/qualityGate`), interval scheduling, recording-transfer integrity,
+and in-memory prototype estimate history are implemented as testable modules.
+Legacy cBP-Tnet adapters were removed from `services/`; historical copies are under
+`archive/cbp-tnet/`. Importing these modules does not connect a physical device or claim
+hardware validation. Wire UUID adapters and AFE4404/BMI270 firmware behavior remain unconfirmed.
 
 The remaining temporary exported names and `never` return types mark unimplemented entry points,
 not final interfaces. Replace them with the typed contracts and implementations in

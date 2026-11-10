@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "legacy_sparkfun_ac_20260923",
+  "csvSha256": "aa0630aab95416a6b0c8c6f25d31f6577b6d79d8bfdd7ab66f9793261dfe3878",
+  "hardwareValidated": false,
+  "newWatchHardware": false,
+  "imuPresent": false,
+  "bpAccuracyEvaluated": false,
+  "sampleCount": 1322,
+  "elapsedSeconds": 48.723,
+  "format": "legacy_ac",
+  "gridSamples": 6091,
+  "starts": [0, 2341],
+  "maxLoggedGapMs": 345,
+  "modelId": "anyppg_frozen_ridge_raw_v1",
+  "preprocessingVersion": "anyppg_csv_legacy_ac_v1",
+  "toleranceMmhg": 0.01,
+  "windows": [
+    {
+      "channel": "red",
+      "startSample": 0,
+      "startSeconds": 0,
+      "lastSampleSeconds": 29.992,
+      "normalizedSha256": "6c416a19034d574526f67045600d244742ed01046a51ebc7b25848d4ee1ce6c3",
+      "expectedSbp": 99.5865,
+      "expectedDbp": 72.4538
+    },
+    {
+      "channel": "red",
+      "startSample": 2341,
+      "startSeconds": 18.728,
+      "lastSampleSeconds": 48.72,
+      "normalizedSha256": "8f432aa630b0f07e9ac5862bcb956efde11d4ebaea0d83a3209ec04791ce291d",
+      "expectedSbp": 103.6619,
+      "expectedDbp": 70.8066
+    },
+    {
+      "channel": "infrared",
+      "startSample": 0,
+      "startSeconds": 0,
+      "lastSampleSeconds": 29.992,
+      "normalizedSha256": "2bd45f599047489691f7bf1fedfe2102c7be16a490b43b713eeba678fe8e70fe",
+      "expectedSbp": 101.5599,
+      "expectedDbp": 69.9864
+    },
+    {
+      "channel": "infrared",
+      "startSample": 2341,
+      "startSeconds": 18.728,
+      "lastSampleSeconds": 48.72,
+      "normalizedSha256": "a072f334c1a4ca70d1c59018c1ac7c772ae50ad1e8e6185b90d0f5b1bcfa4657",
+      "expectedSbp": 104.5136,
+      "expectedDbp": 71.4146
+    }
+  ],
+  "sourceDocs": [
+    "docs/AnyPPG_CSV_Demo.md",
+    "docs/Actual_Sensor_Data_Review_and_Next_Steps.md",
+    "docs/evidence/anyppg-20261008/actual_csv_conversion.json"
+  ]
+}
