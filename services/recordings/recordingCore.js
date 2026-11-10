@@ -1,5 +1,6 @@
 'use strict';
 // Transport/data diagnostics only. No inference, normalization, resampling or clinical SQI.
+// Beat-extraction preview for legacy cBP-Tnet was removed; AnyPPG uses services/anyppg + qualityGate.
 const CONTRACT = 'cdd_ppg_recording_v1';
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_SAMPLES = 30000;
@@ -97,12 +98,13 @@ function inspectRecording(input) {
   else if (maxRun >= Math.max(2,Math.ceil(r.samplingRateHz))) blockers.push('At least one second of identical consecutive values.');
   if (atRails) blockers.push(`${atRails} samples touch or exceed a declared ADC limit; check clipping.`);
   if (r.timingSource === 'arrival') blockers.push('Packet arrival timestamps cannot establish individual sample timing for this preview.');
-  if (r.samplingRateHz !== 125) blockers.push('Beat preview requires actual 125 Hz data; resampling is not implemented.');
-  if (count < 3750) blockers.push('Beat preview needs at least 3,750 samples (30 seconds at 125 Hz).');
   if (r.channel.adcMin === null) warnings.push('ADC limits are unknown, so hardware clipping cannot be checked.');
   if (r.timingSource === 'sample_clock') warnings.push('Sample-clock timestamps do not independently measure sampling jitter.');
   if (r.acquisition.preprocessing.toLowerCase() !== 'none') warnings.push('Upstream filtering is declared; review it before choosing model preprocessing.');
+  if (r.samplingRateHz !== 125) warnings.push('Declared rate differs from AnyPPG’s 125 Hz model grid; use qualityGate resampling only after acquisition review.');
+  if (count < 3750) warnings.push('Fewer than 3,750 samples (30 s at 125 Hz); AnyPPG needs a full window after compatible resampling.');
   warnings.push('Passing these engineering checks does not establish usable pulse morphology or BP accuracy.');
+  warnings.push('Active BP inference uses AnyPPG only; legacy cBP-Tnet beat extraction is archived.');
   return {
     schemaVersion:1, contract:CONTRACT, source:r.source, sampleCount:count,
     samplingRateHz:r.samplingRateHz, observedSequenceRateHz:observedRate,
@@ -116,25 +118,6 @@ function inspectRecording(input) {
     sensorCompatibilityVerified:false, qualityValidated:false, modelInferenceRun:false,
   };
 }
-function previewBeatExtraction(recording) {
-  const report = inspectRecording(recording);
-  need(report.previewAllowed, 'Beat preview blocked: ' + report.blockers.join(' '));
-  const {extractPpg} = require('../bpPpgPreprocess');
-  const windows=[];
-  for (let i=0; i<report.completePreviewWindows; i++) {
-    const samples=recording.samples.slice(i*3750,(i+1)*3750);
-    try {
-      const extracted=extractPpg(samples.map(row=>row[2]),125);
-      windows.push({window:i+1,firstSequence:samples[0][0],candidateCount:extracted.beats.length,
-        peakCount:extracted.peaks.length,shortIntervalsRejected:extracted.shortIntervalsRejected,error:null});
-    } catch(error) {
-      windows.push({window:i+1,firstSequence:samples[0][0],candidateCount:0,peakCount:0,
-        shortIntervalsRejected:0,error:error instanceof Error?error.message:String(error)});
-    }
-  }
-  return {windows,remainderSamples:report.remainderSamples,modelInferenceRun:false,normalizationApplied:false,
-    passed:windows.length>0 && windows.every(w=>!w.error && w.candidateCount>0)};
-}
 // A deterministic software example; it is never marked as a person's recording.
 function makeDemoRecording() {
   return {schemaVersion:1,kind:CONTRACT,source:'synthetic',recordingId:'synthetic-demo-001',participantCode:'DEMO',
@@ -144,4 +127,4 @@ function makeDemoRecording() {
     acquisition:{gain:'not applicable',ledCurrentMa:null,preprocessing:'none'},
     samples:Array.from({length:3750},(_,i)=>[i,i*8,Math.fround(1+0.5*Math.sin(2*Math.PI*1.1*i/125)+0.08*Math.sin(4*Math.PI*1.1*i/125))])};
 }
-module.exports={CONTRACT,MAX_FILE_BYTES,MAX_SAMPLES,parseRecordingJson,validateRecording,inspectRecording,previewBeatExtraction,makeDemoRecording};
+module.exports={CONTRACT,MAX_FILE_BYTES,MAX_SAMPLES,parseRecordingJson,validateRecording,inspectRecording,makeDemoRecording};

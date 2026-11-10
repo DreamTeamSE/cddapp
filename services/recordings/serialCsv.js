@@ -74,6 +74,12 @@ function inspectSerialCsv(recording) {
 }
 function parseRecordingFile(text) {
   const cleaned=text.replace(/^\uFEFF/,'').trimStart();
-  return cleaned.startsWith('{')?require('./recordingCore').parseRecordingJson(cleaned):parseSerialCsv(cleaned);
+  if(!cleaned.startsWith('{')) return parseSerialCsv(cleaned);
+  let parsed;
+  try { parsed=JSON.parse(cleaned); }
+  catch { throw new Error('Invalid JSON. Choose a recording JSON file or use the documented format.'); }
+  // Synchronized PPG+IMU contract (#7) shares the JSON picker entry point with legacy PPG JSON.
+  if(parsed && parsed.kind==='cdd_ppg_imu_recording_v1') return require('./syncContract').parseSyncRecordingJson(cleaned);
+  return require('./recordingCore').parseRecordingJson(cleaned);
 }
 module.exports={LEGACY_HEADER,RAW_HEADER,parseSerialCsv,inspectSerialCsv,parseRecordingFile};

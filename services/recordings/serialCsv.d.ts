@@ -1,4 +1,5 @@
 import type {SensorRecording} from './recordingCore';
+import type {SyncRecording} from './syncContract';
 export type SerialRecording={kind:'cdd_serial_csv_v1';format:'legacy_ac'|'raw_readout';rows:number[][]};
 export type SerialInspection={schemaVersion:1;format:string;source:string;sampleCount:number;elapsedSeconds:number;
  observedLoggedPairsPerSecond:number|null;declaredSensorRateHz:null;timestampsDescribe:string;nonIncreasingTimestamps:number;
@@ -10,4 +11,4 @@ export const LEGACY_HEADER:string;
 export const RAW_HEADER:string;
 export function parseSerialCsv(text:string):SerialRecording;
 export function inspectSerialCsv(recording:SerialRecording):SerialInspection;
-export function parseRecordingFile(text:string):SensorRecording|SerialRecording;
+export function parseRecordingFile(text:string):SensorRecording|SerialRecording|SyncRecording;

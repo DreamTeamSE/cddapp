@@ -4,7 +4,7 @@
     "jsx": "react-native",
     "strict": true,
     "allowImportingTsExtensions": true,
-    "allowImportingTsExtensions": true,
+    "types": ["node"],
     "paths": {
       "@/*": [
         "./*"
@@ -16,5 +16,12 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "iphone-test-backups",
+    "archive",
+    "ios",
+    "android"
   ]
 }

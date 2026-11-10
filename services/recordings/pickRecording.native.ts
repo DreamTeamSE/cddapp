@@ -2,7 +2,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import { MAX_FILE_BYTES, type SensorRecording } from './recordingCore';
 import {parseRecordingFile, type SerialRecording} from './serialCsv';
-export async function pickRecording(): Promise<SensorRecording | SerialRecording | null> {
+import type { SyncRecording } from './syncContract';
+export async function pickRecording(): Promise<SensorRecording | SerialRecording | SyncRecording | null> {
   const result = await DocumentPicker.getDocumentAsync({type: '*/*', copyToCacheDirectory: true, multiple: false});
   if (result.canceled) return null;
   const asset = result.assets[0];

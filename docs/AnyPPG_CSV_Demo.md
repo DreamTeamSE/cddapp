@@ -1,12 +1,16 @@
 # AnyPPG CSV demo and session handoff
 
-Updated October 8, 2026. Research software demonstration; not a validated wearable BP measurement.
+Updated November 9, 2026. Research software demonstration; not a validated wearable BP measurement.
+
+**Active model:** AnyPPG only. Legacy cBP-Tnet screens and ONNX assets were removed from the live app and archived under `archive/cbp-tnet/`.
+
+**Legacy hardware fixture:** The SparkFun Bio Hub recording from `CDD_DataCollection.zip` (1,322 samples / ~48.723 s; original participant-coded filename redacted) is checked into `tests/fixtures/anyppg/legacy_sparkfun_ac_20260923.csv` for parse/normalization/AnyPPG regression only. It is **not** AFE4404 + SFH 7050A + BMI270 data, has **no IMU**, and has **no paired cuff BP**.
 
 ## What changed
 
-Blood Pressure now has a CSV import card. It runs the frozen AnyPPG encoder plus the **already-fitted recording-level ridge predictor** from HiPerGator. The encoder summarizes a signal; the ridge predictor is a saved set of weights that turns the summary into two BP estimates. This update did not train, calibrate or tune the model toward a desired BP.
+Blood Pressure has a CSV import card. It runs the frozen AnyPPG encoder plus the **already-fitted recording-level ridge predictor** from HiPerGator. The encoder summarizes a signal; the ridge predictor is a saved set of weights that turns the summary into two BP estimates. This update did not train, calibrate or tune the model toward a desired BP.
 
-The old test screens retain their old model and evidence. The new model is an exploratory candidate, not an established accuracy winner. User-operated physical iPhone tests previously validated the original package. The assistant's new export and CSV checks ran on a host CPU, not an iPhone.
+AnyPPG is an exploratory candidate for the wearable path, not an established accuracy winner. Earlier physical iPhone tests that validated **cBP-Tnet** are historical and do not transfer automatically. The assistant's AnyPPG export and CSV checks ran on a host CPU; a dedicated physical-iPhone AnyPPG report is still needed.
 
 ## What to show your boss
 
