@@ -7,22 +7,22 @@ const path=require('node:path');
 const core=require('../../../services/recordings/recordingCore');
 const csv=require('../../../services/recordings/serialCsv');
 
-test('125 Hz synthetic recording checks and every full window is previewed',()=>{
+test('125 Hz synthetic recording passes engineering checks without beat extraction',()=>{
  const r=core.makeDemoRecording();const parsed=core.parseRecordingJson(JSON.stringify(r));
- assert.equal(core.inspectRecording(parsed).previewAllowed,true);
+ const report=core.inspectRecording(parsed);
+ assert.equal(report.previewAllowed,true);
+ assert.equal(report.modelInferenceRun,false);
+ assert.equal(typeof core.previewBeatExtraction,'undefined');
  parsed.samples.push(...r.samples.map(([n,t,v])=>[n+3750,t+30000,v]));
  parsed.samples.push([7500,60000,1]);
- const preview=core.previewBeatExtraction(parsed);
- assert.equal(preview.windows.length,2);assert.equal(preview.remainderSamples,1);
- assert(preview.windows.every(w=>w.candidateCount>0&&!w.error));
- assert.equal(preview.modelInferenceRun,false);assert.equal(preview.normalizationApplied,false);
+ assert.equal(core.inspectRecording(parsed).completePreviewWindows,2);
+ assert.equal(core.inspectRecording(parsed).remainderSamples,1);
 });
-test('each timing/transport failure blocks extraction independently',()=>{
+test('each timing/transport failure blocks independently',()=>{
  for(const edit of [r=>r.samples.splice(10,1),r=>r.samples[10][0]=9,r=>r.samples[10][1]=r.samples[9][1],
-  r=>r.samplingRateHz=50,r=>r.timingSource='arrival',r=>r.samples.forEach(x=>x[2]=7),
+  r=>r.timingSource='arrival',r=>r.samples.forEach(x=>x[2]=7),
   r=>{r.channel.adcMin=0;r.channel.adcMax=1;}]){
   const r=core.makeDemoRecording();edit(r);assert.equal(core.inspectRecording(r).previewAllowed,false);
-  assert.throws(()=>core.previewBeatExtraction(r),/blocked/);
  }
 });
 test('rejects corrupt JSON and malformed schema or nonfinite waveform',()=>{

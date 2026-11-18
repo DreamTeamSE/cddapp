@@ -1,5 +1,7 @@
 # CDD blood-pressure prediction: calibration design, inference package, and device-test report
 
+> **Historical note (Nov 2026):** Much of this report documents the **cBP-Tnet** package and iPhone synthetic tests. That model is archived under `archive/cbp-tnet/`. Active app inference is **AnyPPG** (`assets/models/anyppg/`). Keep the measurements below as historical evidence; do not treat them as the current shipping path.
+
 **Project:** `ethankrol/cddapp`, working branch `rithika-ML`  
 **Prepared for:** Rithika Mathew  
 **Status date:** September 27, 2026; includes expanded iPhone reports recorded September 25  

@@ -29,7 +29,7 @@ module.exports = config;
   };
 })();
 
-// CBP_ONNX_ASSET_SUPPORT
+// ONNX_ASSET_SUPPORT — required for local AnyPPG encoder loading
 ;(() => {
   const config = module.exports;
   if (!config.resolver || !Array.isArray(config.resolver.assetExts)) {

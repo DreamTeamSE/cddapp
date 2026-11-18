@@ -3,6 +3,7 @@ import {ActivityIndicator,AppState,Pressable,Share,StyleSheet,Text,View} from 'r
 import {pickRecording} from '@/services/recordings/pickRecording';
 import {inferCsv} from '@/services/anyppg/inference';
 import {checkAnyPpg} from '@/services/anyppg/synthetic';
+import {recordCsvReport} from '@/services/anyppg/sessionHistory';
 import type {CsvReport} from '@/services/anyppg/core';
 
 export default function BpCsvCard() {
@@ -34,7 +35,11 @@ export default function BpCsvCard() {
         result=await inferCsv(recording,()=>cancel.current,onProgress);
         result={...result,sensorSite:site,sensorSiteSource:'user_selection',controller:'ESP32-C3 (team reported)'};
       }
-      if(mounted.current&&!cancel.current)setReport(result);
+      if(mounted.current&&!cancel.current){
+        // Traceable prototype history (#12); never writes health-journal SQLite rows.
+        recordCsvReport(result,{sourceKind:result.synthetic?'imported_csv':'imported_csv'});
+        setReport(result);
+      }
     }catch(e){if(mounted.current)setError(e instanceof Error?e.message:String(e));}
     finally {running.current=false;if(mounted.current){setBusy(false);setProgress('');}}
   }

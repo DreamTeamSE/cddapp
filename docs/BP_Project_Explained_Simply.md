@@ -1,5 +1,7 @@
 # Your blood-pressure app, explained simply
 
+> **Historical note (Nov 2026):** Sections describing phone execution of `cbp_tnet.onnx` and the old Test ML screens are historical. The app’s only active BP inference model is **AnyPPG**. Archived materials: `archive/cbp-tnet/`.
+
 Original test walkthrough: September 25, 2026. Current-data update: October 7, 2026. This guide explains the results you supplied. The detailed engineering report contains the full measurements and research history.
 
 ## Latest update: actual hardware data

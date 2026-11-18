@@ -1,0 +1,39 @@
+{
+  "fixtureId": "legacy_sparkfun_ac_20260923",
+  "originalFilename": "[redacted_participant]_09_23_26.csv",
+  "sourceArchive": "CDD_DataCollection.zip",
+  "pathsInArchive": [
+    "data_collection/datalogs/[redacted_participant]_09_23_26.csv",
+    "data_collection/CDD_DataCollectionFirmware/CDD_DataCollectionFirmware.ino",
+    "data_collection/LogRedandIRData_script.py"
+  ],
+  "csvFile": "legacy_sparkfun_ac_20260923.csv",
+  "csvSha256": "aa0630aab95416a6b0c8c6f25d31f6577b6d79d8bfdd7ab66f9793261dfe3878",
+  "hardware": {
+    "stack": "SparkFun Bio Sensor Hub / MAX32664-class collection path (legacy)",
+    "notNewWatchStack": true,
+    "newWatchTargetsExcluded": ["AFE4404", "SFH7050A", "BMI270"],
+    "imuPresent": false,
+    "pairedCuffPresent": false
+  },
+  "signal": {
+    "format": "legacy_ac",
+    "header": "time_stamp_millis,RawRed,RawIR",
+    "sampleCount": 1322,
+    "elapsedSeconds": 48.723,
+    "provenance": "baseline-subtracted AC values from firmware print path; not raw ADC counts"
+  },
+  "allowedRegressionUses": [
+    "serial CSV parse/inspect",
+    "AnyPPG prepareRecording interpolation to 125 Hz grid",
+    "AnyPPG per-chunk standardization",
+    "AnyPPG host/phone inference numeric regression against locked expectations"
+  ],
+  "disallowedClaims": [
+    "AFE4404 / SFH 7050A / BMI270 hardware validation",
+    "synchronized PPG+IMU contract validation",
+    "clinical or cuff BP accuracy",
+    "15-minute wearable scheduling or BLE transfer validation"
+  ],
+  "notes": "Participant-identifying filename tokens were redacted for the public repository. CSV body contains only timestamps and PPG values."
+}

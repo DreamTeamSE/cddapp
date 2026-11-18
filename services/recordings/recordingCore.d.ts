@@ -20,10 +20,7 @@ export type Inspection = {
   completePreviewWindows: number; remainderSamples: number; previewAllowed: boolean; blockers: string[]; warnings: string[];
   sensorCompatibilityVerified: false; qualityValidated: false; modelInferenceRun: false;
 };
-export type BeatPreview = {windows: {window: number; firstSequence: number; candidateCount: number; peakCount: number; shortIntervalsRejected: number; error: string | null}[];
-  remainderSamples: number; modelInferenceRun: false; normalizationApplied: false; passed: boolean};
 export function parseRecordingJson(json: string): SensorRecording;
 export function validateRecording(value: unknown): SensorRecording;
 export function inspectRecording(recording: SensorRecording): Inspection;
-export function previewBeatExtraction(recording: SensorRecording): BeatPreview;
 export function makeDemoRecording(): SensorRecording;

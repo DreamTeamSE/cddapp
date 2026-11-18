@@ -1,5 +1,7 @@
 # Your first sensor recording: what we found and what to do next
 
+**November 9 update:** The reviewed SparkFun Bio Hub CSV is now a committed regression fixture at `tests/fixtures/anyppg/legacy_sparkfun_ac_20260923.csv` (original participant-coded filename from `CDD_DataCollection.zip` redacted in public docs). It exercises legacy AnyPPG CSV parsing/normalization/inference only. It does **not** validate the new AFE4404 + SFH 7050A + BMI270 watch stack, synchronized IMU capture, BLE transfer, or cuff accuracy.
+
 **October 8 update:** Controller confirmed as ESP32-C3. Optical hub/sensor, board variant, I²C pins, acquisition clock and finger/wrist placement are still unconfirmed. A separate [AnyPPG CSV demo](AnyPPG_CSV_Demo.md) now supports explicitly experimental inference with print-time interpolation; the inspection-only checks below do not constitute a BP accuracy test.
 
 Reviewed October 7, 2026. This review uses the CSV, Arduino sketch and Python logger in the uploaded `CDD_DataCollection.zip`. The separate SerialPlot Windows installer was not run.

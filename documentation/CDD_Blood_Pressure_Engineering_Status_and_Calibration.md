@@ -1,5 +1,7 @@
 # CDD blood-pressure prediction: calibration design, inference package, and device-test report
 
+> **Historical note (Nov 2026):** cBP-Tnet content below is archived. Active inference is **AnyPPG**. See `archive/cbp-tnet/`.
+
 **Project:** `ethankrol/cddapp`, working branch `rithika-ML`  
 **Prepared for:** Rithika Mathew  
 **Status date:** September 25, 2026, evidence through 12:18 a.m. EDT (04:18 UTC)  

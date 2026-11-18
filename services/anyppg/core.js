@@ -32,6 +32,8 @@ function prepareRecording(recording) {
 }
 
 function standardizeWindow(window) {
+  // AnyPPG uses per-chunk (10 s) mean/std normalization — NOT cBP-Tnet per-beat normalize_beats.
+  // Issue #16 beat-normalization work must not be applied here without a compatibility review.
   need(window.length === 3750, 'AnyPPG requires exactly 3750 samples per window.');
   const out=new Float32Array(3750);
   for(let k=0;k<3;k++) {

@@ -1,5 +1,6 @@
 import BpCsvCard from '@/components/BpCsvCard';
-import BpSmokeTestLink from '@/components/BpSmokeTestLink';
+import RecordingInspectLink from '@/components/RecordingInspectLink';
+import WatchPipelineLink from '@/components/WatchPipelineLink';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
@@ -146,7 +147,8 @@ export default function HomePage() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <BpCsvCard />
-        <BpSmokeTestLink />
+        {__DEV__ ? <WatchPipelineLink /> : null}
+        <RecordingInspectLink />
         <View style={styles.bodyWrapper}>
           <Text style={styles.readingSubtitle}>Dashboard preview — sample values (mmHg)</Text>
 
