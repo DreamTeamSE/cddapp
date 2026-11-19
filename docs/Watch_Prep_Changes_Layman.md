@@ -1,7 +1,7 @@
 # What we changed (plain English)
 
-**Audience:** teammates who may not live in the ML code every day.  
-**Branches:** preprocessing on `feature/watch-prep-gaps`; auth merge readiness on `feature/auth-onboarding`.  
+**Audience:** teammates and leads who may not live in the ML code every day.  
+**Branches:** phone prep work on `feature/watch-prep-gaps`; auth/login is already on `main`.  
 **Date context:** November 2026.
 
 ---
@@ -13,120 +13,116 @@ The watch will eventually send a short clip of optical heart-signal (PPG) plus m
 1. Check the clip is usable.  
 2. Pick the quietest ~30 seconds if the clip is longer / partly noisy.  
 3. Resample to the rate the blood-pressure model expects (125 samples per second).  
-4. Run AnyPPG and store a clearly labeled **prototype** estimate.
+4. **Normalize** that window the same way the model was trained.  
+5. Run AnyPPG and store a clearly labeled **prototype** estimate.
 
 We did **not** wait for live watch data. Everything here runs on synthetic JSON fixtures that look like the planned watch file format.
 
 ---
 
-## 2. What the PDF says vs what the app actually runs
+## 2. How normalization is applied (for your boss)
+
+**Short answer:** We do **not** normalize beat-by-beat. The shipping model (**AnyPPG**) normalizes each **10-second chunk** of a **30-second** window using that chunk’s own average and spread.
+
+### Step by step
+
+1. **Get one 30-second window** of PPG at **125 Hz** → exactly **3,750 samples**.  
+   - Watch path: quality gate + resample (`anyppg_watch_prep_v1`).  
+   - CSV demo path: interpolate print times onto the same 125 Hz grid.
+
+2. **Split that window into three chunks of 10 seconds** → **1,250 samples each**:  
+   - Chunk A = samples 0–1249  
+   - Chunk B = samples 1250–2499  
+   - Chunk C = samples 2500–3749  
+
+3. **For each chunk independently:**  
+   - Compute the **mean** (average value) of those 1,250 numbers.  
+   - Compute the **standard deviation** (how spread out they are).  
+   - If the chunk is basically flat (`std` tiny), **reject** — no BP guess.  
+   - Replace each sample with:  
+     `(sample − mean) / (std + a tiny epsilon)`  
+   - That puts each chunk on a similar scale so LED brightness / ADC units don’t dominate the model.
+
+4. **Feed the full 3,750 normalized samples** into the AnyPPG ONNX encoder (still one window; the three chunks were only for how we scale).
+
+5. **Separate second normalization** happens on the **encoder embedding** before the ridge BP head (using saved `feature_mean` / `feature_std` in `ridge_head.json`). That is **not** the same as the raw PPG chunk step above — it scales the model’s internal features the way training did.
+
+### What this is *not*
+
+| People sometimes mean | What we do for AnyPPG |
+|---|---|
+| Per-beat normalize (cut each heartbeat, scale each beat) | **No** — that was the older **cBP-Tnet** idea; archived, not shipping |
+| One mean/std for the whole 30 s | **No** — we use **three** chunk mean/stds |
+| Flipping polarity / picking red vs IR as “normalization” | Separate topics; not done automatically yet (needs live data) |
+
+Code: `standardizeWindow` in [`services/anyppg/core.js`](../services/anyppg/core.js). Watch prep calls the same function after resampling in [`services/recordings/qualityGate.js`](../services/recordings/qualityGate.js).
+
+**One-liner you can send your boss:**  
+> “AnyPPG takes 30 seconds at 125 Hz, splits it into three 10-second pieces, and scales each piece by its own mean and standard deviation before the neural net. We are not doing per-heartbeat normalization.”
+
+---
+
+## 3. What the PDF says vs what the app actually runs
 
 **PPG Filtering.pdf** describes:
 
 - **Watch:** validate samples, score motion/quality, pick a clean 30 s window, optionally denoise, then send raw (~100 Hz) data to the phone.  
 - **Phone (older write-up):** steps that match the older **cBP-Tnet** model (Kalman, beat cutting, per-beat normalize).
 
-**This app’s shipping path is AnyPPG**, not that full cBP-Tnet phone stack. So we followed the PDF’s **who does what** (watch vs phone), but the phone still feeds **AnyPPG** (30 s window → three 10 s chunks with chunk mean/std). We did **not** port AMPD / Kalman / per-beat normalize into the live path.
+**This app’s shipping path is AnyPPG**, not that full cBP-Tnet phone stack. We followed the PDF’s **who does what** (watch vs phone), but the phone still feeds **AnyPPG** as above. We did **not** port AMPD / Kalman / per-beat normalize into the live path.
 
 ---
 
-## 3. What changed in the code
+## 4. What changed in the code
 
 ### Phone preprocessing (`feature/watch-prep-gaps`)
 
-- **Quiet-window crop:** If the recording starts with lots of movement and then settles, the app now tries the quiet 30 s candidates from motion selection and only runs quality + model prep on that slice — not always from the very beginning of the file.  
-- **New sample files:** Longer sync JSON fixtures under `tests/fixtures/sync-recordings/` (good clip, shaky clip, flatline, mixed motion, firmware-filtered).  
-- **Resample checks:** Automated tests that 100 Hz → 125 Hz still produces the expected 3750-sample window.  
-- **Firmware-filtered label:** If the watch says data was already filtered, the phone records that, does **not** pretend the signal is raw ADC, and still avoids applying a second mystery filter.  
-- **One-command host runner:**  
-  `node tools/anyppg/run-watch-recording.cjs <file.json>`  
-  prints a JSON report (accepted / rejected) without opening the iPhone UI.  
-- **Sim → inference hook:** after a simulated BLE upload finishes, an optional callback can run the watch pipeline (tests use a mock; real ONNX stays injectable).  
-- **Board ticket draft:** paste-ready text in `docs/Board_Tickets_Draft.md`.
+- **Quiet-window crop:** Prefer the quietest 30 s, not always the start of the file.  
+- **Sample fixtures + tests** (good / shaky / flat / mixed / firmware-filtered).  
+- **Resample checks** (100 Hz → 125 Hz → 3750 samples).  
+- **Firmware-filtered label** so we don’t double-filter or pretend filtered data is raw ADC.  
+- **Host CLI:** `node tools/anyppg/run-watch-recording.cjs <file.json>`  
+- **Sim → inference hook** after a fake BLE upload (injectable; tests use a mock).
 
-### Auth branch merge readiness (`feature/auth-onboarding`)
+### Auth / login (already on `main`)
 
-- Merged current **main** (AnyPPG + Android) into the login/onboarding branch.  
-- Fixed conflicts in package / lock / Podfile files.  
-- Kept login extras (`expo-secure-store`, crypto, SQLCipher) **and** main’s newer Expo versions.  
-- Tests on that tip: **63/63** service tests pass, including the **24-hour SQLite PPG cache**.  
-- Details: `docs/AUTH_MERGE_READY.md`.  
-- **PR #5 is still draft** — ready for review after push; not merged to main yet.
+- Login/onboarding + **24-hour on-phone PPG cache** merged to `main`.  
+- Still **local-dev** accounts until Cognito. Fresh native build after pull.
 
 ### DynamoDB
 
-- **Left alone.** Adapter stays a stub for your teammate.
+- Left for your teammate.
 
 ---
 
-## 4. What did not change
+## 5. What did not change
 
 - No real Bluetooth / live watch capture.  
-- No DynamoDB table wiring or AWS credentials in the app.  
+- No DynamoDB wiring.  
 - No cBP-Tnet retraining or per-beat normalize on the AnyPPG path.  
-- No hardware threshold tuning (polarity, red vs IR, SQI labels, NLMS A/B) — those need live data.  
-- No claim that estimates are clinically validated.
+- No hardware threshold tuning (polarity, red vs IR, SQI, NLMS) — needs live data.  
+- No clinical validation claim.
 
 ---
 
-## 5. How to try it
-
-From the prep branch (or once those files are merged):
+## 6. How to try it
 
 ```bash
-# Quality / fixture / resample tests
 npm run test:recordings
-
-# AnyPPG + CLI tests
 npm run test:anyppg
-
-# Manual CLI on a good synthetic clip
 node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/accept-low-motion-32s.json
-
-# Manual CLI on a bad (shaky) clip — expect exit code 2
-node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/reject-high-motion-32s.json
-```
-
-Auth branch tip (after pull):
-
-```bash
-git checkout feature/auth-onboarding
-npm test
 ```
 
 ---
 
-## 6. New board tickets (and columns)
+## 7. Tickets (after dedupe)
 
-Full text: [`docs/Board_Tickets_Draft.md`](Board_Tickets_Draft.md).
+**Still useful open work:** #7–#15 (contract through validation), plus #26 (persist BP history), #27 (packet→JSON builder), #28 (red→IR fallback).
 
-| Ticket | Column |
-|---|---|
-| WATCH-01 Quiet-window crop before prep | Ready |
-| WATCH-02 32s+ fixtures + file tests | Ready |
-| WATCH-04 100→125 Hz golden tests | Ready |
-| WATCH-07 Host CLI runner | Ready |
-| AUTH-MERGE Rebase auth onto main / undraft PR #5 | Ready |
-| WATCH-03 firmware_filtered provenance | Backlog |
-| WATCH-06 Persist BP history in SQLite | Backlog |
-| WATCH-08 Sim → inference hook | Backlog |
-| WATCH-09 Packet → sync JSON builder stub | Backlog |
-| WATCH-10 Red then IR fallback | Backlog |
-| WATCH-11 Clarify issue #16 / AnyPPG docs | Backlog |
-| KAN-20-MAIN Verify 24h cache on main after auth merge | Backlog |
-| PDF-HW Hardware sticky notes | Backlog (blocked on live watch) |
-| PDF-CBP cBP model-fix stickies | Backlog / archived unless cBP returns |
+**Closed as done or duplicate:** #19–#25 (prep work), #29 (docs dup of #16), #30 (KAN-20 on main), #31 (dup of #13–#15), #32 (cBP archived).
 
 ---
 
-## 7. What’s still waiting on live watch data
+## 8. What’s still waiting on live watch data
 
-- Polarity (wave upside-down or not vs training data).  
-- Which light channel works best (red / IR / green).  
-- Tuning “how clean is clean enough” (SQI / motion limits).  
-- Optional NLMS denoise A/B.  
-- How often to retry a failed quiet window.  
-- Wrist vs finger / cuff comparison.  
-- Real BLE transfer and 15-minute schedule on the device.
-
-Until then, keep using the synthetic fixtures and the CLI so the phone path stays ready for the first real Stage-7 uploads.
+Polarity, channel pick, SQI thresholds, NLMS A/B, retry spacing, wrist vs finger / cuff, real BLE, 15-minute field schedule.

@@ -1,8 +1,10 @@
 # CDD blood-pressure research app
 
-Updated November 9, 2026. **Team production setup still targets `main` after merges.** Active development for issues #7–#16 lives on `feature/ppg-pipeline-improvements`.
+Updated November 18, 2026. **Production target: `main`.** Phone watch-prep work may land via `feature/watch-prep-gaps`.
 
 The Blood Pressure page imports the team’s CSV and displays **experimental AnyPPG estimates** (red and infrared separately). These numbers are not validated against matching cuff readings and are not written to the health journal.
+
+**Normalization (AnyPPG):** a 30 s window at 125 Hz is split into three 10 s chunks; each chunk is scaled by **its own mean and std** before the encoder. This is **not** per-heartbeat normalization (that was old cBP-Tnet). Plain-English write-up: [`docs/Watch_Prep_Changes_Layman.md`](docs/Watch_Prep_Changes_Layman.md).
 
 ## Project overview and architecture
 
@@ -255,16 +257,21 @@ Do not change `graphOptimizationLevel` or model hashes without rerunning export 
 
 ## Documentation map
 
+**Hub:** [`docs/README.md`](docs/README.md) (full index).
+
+Active:
+
+- [Layman summary + normalization](docs/Watch_Prep_Changes_Layman.md)  
 - [Implementation status #7–#16](docs/IMPLEMENTATION_STATUS.md)  
 - [Next steps](docs/NEXT_STEPS.md)  
-- [iPhone CSV verification evidence](docs/evidence/ANYPPG_IPHONE_VERIFICATION.md)  
 - [Recording contract](docs/recording-contract.md)  
 - [AnyPPG ↔ watch compatibility](docs/anyppg-watch-compatibility.md)  
-- [Evaluation protocol](docs/evaluation-protocol.md)  
+- [iPhone CSV verification](docs/evidence/ANYPPG_IPHONE_VERIFICATION.md)  
 - [Roadmap](CDD_Next_Tasks_Roadmap.md)  
-- [AnyPPG CSV demo detail](docs/AnyPPG_CSV_Demo.md)  
-- [cBP-Tnet cleanup inventory](docs/archive/cbp-tnet-cleanup-inventory.md)  
-- [Archived cBP-Tnet](archive/cbp-tnet/README.md)  
-- Plain-language / calibration docs under `docs/` may still contain **historical cBP-Tnet** sections — treat those as archive context.
+
+Historical only (not shipping):
+
+- [cBP-era docs archive](docs/archive/cbp-era/README.md)  
+- [Archived cBP-Tnet code/weights](archive/cbp-tnet/README.md)  
 
 Keep private CSVs out of Git (e.g. `private-recordings/`). The committed SparkFun fixture is for regression only.
