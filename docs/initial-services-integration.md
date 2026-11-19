@@ -14,6 +14,19 @@ Test: `npm test -- --test-name-pattern='blood-pressure inference'` (or run the i
 
 `RollingPpgCache` defines append, list-since, and prune operations; `rolling24HourCutoff(nowMs)` supplies the retention boundary. A local store should retain timestamped PPG windows for the last 24 hours and expose pending entries through `HealthDataCache` so they can be synchronized.
 
+`createSqlitePpgCache` (`services/sync/sqlite-ppg-cache.ts`, KAN-20) implements both contracts on SQLite. `openDevicePpgCache(userId)` in `device-ppg-cache.ts` opens it on the phone (`ppg-cache.db`). The file is encrypted with SQLCipher via `services/secure-database.ts`.
+
+- **Per user:** rows are scoped to a user ID.
+- **Status:** each window is `pending`, `synced`, `failed` or `corrupt`.
+  - `markFailed` records the error, and `retryFailed` returns failed windows to `pending`.
+  - Rows that can't be read back are marked `corrupt` and skipped, so one damaged row can't block uploads behind it. Corrupt rows are never retried.
+- **Upload order:** `listPending` returns the oldest windows first.
+- **Duplicates:** re-sending the same window ID is ignored.
+- **Bad input:** windows stamped more than a day in the future (a broken clock) are rejected.
+- **Cleanup:** every append deletes `synced`, `failed` and `corrupt` windows older than 24 hours. Windows that never uploaded are kept for up to 7 days (`maxUnsyncedAgeMs`), so offline data survives but storage stays bounded. That's about 672 windows at one per 15 minutes.
+
+Test: `npm test -- --test-name-pattern='SQLite rolling PPG cache'`. The tests run real SQL through Node's built-in `node:sqlite`, using the wrapper in `tests/support/node-sqlite.ts`. One test drives `AwsSyncService` end to end against this cache.
+
 `AwsSyncService` reads bounded pending batches, writes each batch through `HealthDataRemoteStore`, and marks local records synchronized only after remote success. It publishes `idle`/`syncing`/`error`, `pendingCount`, `lastSyncAtMs`, and `lastError` for app state. Connectivity is injected through `isOnline`; failed writes use bounded exponential retry, preserving pending local data if retries fail.
 
 `createDynamoDbRemoteStore` adapts an injected `DynamoDbWriter` and provisioned table name. DynamoDB provisioning, AWS credentials, authorization, and the production transport (for example a protected API/Lambda rather than embedding broad AWS credentials in the app) are external dependencies. No table name, credentials, AWS SDK, or fake cloud write is embedded here.

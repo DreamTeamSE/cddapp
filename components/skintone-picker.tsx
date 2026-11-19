@@ -2,7 +2,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-const SKIN_TONES = [
+export const SKIN_TONES = [
   '#FFF5EB', // Pale
   '#FFDBAC', // Fair
   '#F1C27D', // Tan
