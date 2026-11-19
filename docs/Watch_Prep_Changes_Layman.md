@@ -1,8 +1,26 @@
 # What we changed (plain English)
 
 **Audience:** teammates and leads who may not live in the ML code every day.  
-**Branches:** phone prep work on `feature/watch-prep-gaps`; auth/login is already on `main`.  
-**Date context:** November 2026.
+**Status:** Phone software that can be done without live watch data is **done** (merged to `main` via PRs #33–#36).  
+**Date context:** November 18, 2026.
+
+---
+
+## 0. Bottom line for the team
+
+**Nothing more useful to implement on the phone until live watch / BLE / cuff data arrives.**
+
+| Done without hardware | Waiting on live watch / firmware / BLE |
+|---|---|
+| Sync recording contract + fixtures | Firmware emitting real AFE4404/BMI270 clips |
+| Motion pick + quality gate + AnyPPG prep | Thresholds tuned on real waveforms |
+| Quiet-window crop, red→IR fallback (no fusion) | Clinical channel pick / polarity / SQI |
+| Prototype BP history in SQLite (survives relaunch) | Real 15‑minute field schedule + background iOS |
+| Packet window → sync JSON builder stub | Live BLE transfer against the watch |
+| Auth + 24h PPG cache (local-dev) | DynamoDB (teammate), Cognito later |
+| Host CLI + synthetic pipeline sim | Cuff accuracy / battery study |
+
+Open GitHub issues **#7–#15** stay open on purpose: phone contracts exist; hardware validation does not.
 
 ---
 
@@ -53,7 +71,7 @@ We did **not** wait for live watch data. Everything here runs on synthetic JSON 
 |---|---|
 | Per-beat normalize (cut each heartbeat, scale each beat) | **No** — that was the older **cBP-Tnet** idea; archived, not shipping |
 | One mean/std for the whole 30 s | **No** — we use **three** chunk mean/stds |
-| Flipping polarity / picking red vs IR as “normalization” | Separate topics; not done automatically yet (needs live data) |
+| Flipping polarity / picking red vs IR as “normalization” | Separate topics; red→IR fallback exists in software, clinical pick needs live data |
 
 Code: `standardizeWindow` in [`services/anyppg/core.js`](../services/anyppg/core.js). Watch prep calls the same function after resampling in [`services/recordings/qualityGate.js`](../services/recordings/qualityGate.js).
 
@@ -75,18 +93,21 @@ Code: `standardizeWindow` in [`services/anyppg/core.js`](../services/anyppg/core
 
 ## 4. What changed in the code
 
-### Phone preprocessing (`feature/watch-prep-gaps`)
+### Phone preprocessing (merged)
 
 - **Quiet-window crop:** Prefer the quietest 30 s, not always the start of the file.  
 - **Sample fixtures + tests** (good / shaky / flat / mixed / firmware-filtered).  
 - **Resample checks** (100 Hz → 125 Hz → 3750 samples).  
 - **Firmware-filtered label** so we don’t double-filter or pretend filtered data is raw ADC.  
 - **Host CLI:** `node tools/anyppg/run-watch-recording.cjs <file.json>`  
-- **Sim → inference hook** after a fake BLE upload (injectable; tests use a mock).
+- **Sim → inference hook** after a fake BLE upload (injectable; tests use a mock).  
+- **Red then IR fallback** (no fusion) when red fails quality.  
+- **Complete window → sync JSON builder** for BLE reassembly → quality/AnyPPG.  
+- **Prototype BP history in SQLite**, bound on sign-in so kill/relaunch keeps estimates.
 
-### Auth / login (already on `main`)
+### Auth / login (on `main`)
 
-- Login/onboarding + **24-hour on-phone PPG cache** merged to `main`.  
+- Login/onboarding + **24-hour on-phone PPG cache**.  
 - Still **local-dev** accounts until Cognito. Fresh native build after pull.
 
 ### DynamoDB
@@ -100,7 +121,7 @@ Code: `standardizeWindow` in [`services/anyppg/core.js`](../services/anyppg/core
 - No real Bluetooth / live watch capture.  
 - No DynamoDB wiring.  
 - No cBP-Tnet retraining or per-beat normalize on the AnyPPG path.  
-- No hardware threshold tuning (polarity, red vs IR, SQI, NLMS) — needs live data.  
+- No hardware threshold tuning (polarity, clinical channel pick, SQI, NLMS) — needs live data.  
 - No clinical validation claim.
 
 ---
@@ -110,21 +131,24 @@ Code: `standardizeWindow` in [`services/anyppg/core.js`](../services/anyppg/core
 ```bash
 npm run test:recordings
 npm run test:anyppg
+npm test
 node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/accept-low-motion-32s.json
 ```
 
+On device (signed in): open **Watch pipeline** (`__DEV__`), run a low-motion synthetic, force-quit, reopen — prototype history should still list the interval/estimate.
+
 ---
 
-## 7. Tickets (after dedupe)
+## 7. Tickets
 
-**Software doable tickets (#26–#28):** SQLite prototype BP history, packet→sync JSON builder stub, and red-then-IR fallback (no fusion) are merged. The phone now opens that SQLite history on sign-in (survives kill/relaunch) and exposes the window→sync JSON builder on the prototype pipeline. Channel fallback is a temporary software stand-in until live red/IR/green comparison on the real watch.
+**Closed software work:** #19–#28 (prep, SQLite history, sync builder, red→IR), plus duplicates #29–#32.
 
-**Still useful open work:** #7–#15 (contract through validation; many need hardware or BLE).
+**Still open (#7–#15):** keep on the board as hardware / BLE / evaluation work. Phone-side contracts and sims are already in place — do not invent more phone-only tickets until live data exists.
 
-**Closed as done or duplicate:** #19–#25 (prep work), #29 (docs dup of #16), #30 (KAN-20 on main), #31 (dup of #13–#15), #32 (cBP archived).
+**Do not file DynamoDB here** — teammate owns that.
 
 ---
 
 ## 8. What’s still waiting on live watch data
 
-Polarity, clinical channel pick, SQI thresholds, NLMS A/B, retry spacing, wrist vs finger / cuff, real BLE, 15-minute field schedule.
+Polarity, clinical channel pick, SQI thresholds, NLMS A/B, retry spacing, wrist vs finger / cuff, real BLE, 15-minute field schedule, battery/coverage study.

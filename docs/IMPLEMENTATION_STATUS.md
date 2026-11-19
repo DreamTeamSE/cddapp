@@ -1,10 +1,12 @@
 # Implementation status — GitHub issues #7–#16
 
-**Branch:** `feature/ppg-pipeline-improvements`  
-**Updated:** November 9, 2026  
+**Branch:** `main` (phone software through PRs #33–#36)  
+**Updated:** November 18, 2026  
 **Active BP model:** AnyPPG only (`anyppg_frozen_ridge_raw_v1`) via `onnxruntime-react-native`
 
 A software module or unit test is **not** enough to mark an issue fully complete. Status below separates **software contracts**, **app wiring**, and **hardware-validated behavior**.
+
+**Phone software without live watch data is complete.** Remaining gaps on #7–#15 are firmware, live BLE, real waveforms, or evaluation — not more phone-only tickets. Related closed work: #26–#28 (SQLite history, sync builder, red→IR).
 
 Issue links assume the DreamTeamSE repository:  
 https://github.com/DreamTeamSE/cddapp/issues/
@@ -15,16 +17,16 @@ https://github.com/DreamTeamSE/cddapp/issues/
 
 | Issue | Topic | Status |
 |---|---|---|
-| [#7](https://github.com/DreamTeamSE/cddapp/issues/7) | PPG/IMU recording contract | **Partially implemented** |
-| [#8](https://github.com/DreamTeamSE/cddapp/issues/8) | Motion selection | **Partially implemented** |
-| [#9](https://github.com/DreamTeamSE/cddapp/issues/9) | 15-minute scheduler | **Partially implemented** |
-| [#10](https://github.com/DreamTeamSE/cddapp/issues/10) | BLE recording transfer | **Partially implemented** |
-| [#11](https://github.com/DreamTeamSE/cddapp/issues/11) | PPG quality + preprocessing | **Partially implemented** |
-| [#12](https://github.com/DreamTeamSE/cddapp/issues/12) | BP inference + history | **Partially implemented** |
+| [#7](https://github.com/DreamTeamSE/cddapp/issues/7) | PPG/IMU recording contract | **Phone done** — firmware fixtures pending |
+| [#8](https://github.com/DreamTeamSE/cddapp/issues/8) | Motion selection | **Phone done** — real IMU / on-watch pending |
+| [#9](https://github.com/DreamTeamSE/cddapp/issues/9) | 15-minute scheduler | **Phone sim done** — firmware / iOS background pending |
+| [#10](https://github.com/DreamTeamSE/cddapp/issues/10) | BLE recording transfer | **Assembler done** — live radio pending |
+| [#11](https://github.com/DreamTeamSE/cddapp/issues/11) | PPG quality + preprocessing | **Phone done** — real AFE thresholds pending |
+| [#12](https://github.com/DreamTeamSE/cddapp/issues/12) | BP inference + history | **Phone + SQLite done** — watch-live pending |
 | [#13](https://github.com/DreamTeamSE/cddapp/issues/13) | Accuracy / coverage / battery | **Pending** (protocol only) |
 | [#14](https://github.com/DreamTeamSE/cddapp/issues/14) | Motion-triggered acquisition | **Pending** (flagged stub) |
 | [#15](https://github.com/DreamTeamSE/cddapp/issues/15) | IMU-assisted filtering | **Pending** (flagged stub) |
-| [#16](https://github.com/DreamTeamSE/cddapp/issues/16) | Normalization / watch compatibility | **Partially implemented** (AnyPPG clarified; cBP retraining N/A) |
+| [#16](https://github.com/DreamTeamSE/cddapp/issues/16) | Normalization / watch compatibility | **Phone clarified** (AnyPPG; cBP N/A) |
 
 ---
 
@@ -93,13 +95,14 @@ https://github.com/DreamTeamSE/cddapp/issues/
 - **Link:** https://github.com/DreamTeamSE/cddapp/issues/12  
 - **Original objective:** Quality-gated estimates only; versioned, non-duplicated prototype history (not journal backfill).  
 - **Status:** **Partially implemented**  
-- **Files:** `services/anyppg/*`, `components/BpCsvCard.tsx`, `services/anyppg/watchInference*`, `services/readings/estimate-history.js`, `services/anyppg/sessionHistory.js`  
-- **Tests:** `tools/anyppg/tests/*.test.cjs` (incl. session-history, legacy CSV ONNX, watch-integration); physical CSV evidence below  
+- **Files:** `services/anyppg/*`, `components/BpCsvCard.tsx`, `services/anyppg/watchInference*`, `services/readings/estimate-history.js`, `services/readings/sqlite-estimate-history.ts`, `services/readings/device-estimate-history.ts`, `services/anyppg/sessionHistory.js`, `services/device/sync-recording-builder.ts`  
+- **Tests:** `tools/anyppg/tests/*.test.cjs` (incl. session-history, legacy CSV ONNX, watch-integration); `tests/services/sqlite-estimate-history.test.ts`; physical CSV evidence below  
 - **Validated:**  
   - Host ONNX AnyPPG + legacy CSV regression  
   - **Physical iPhone Release CSV import** matching documented SBP/DBP (see `docs/evidence/ANYPPG_IPHONE_VERIFICATION.md`)  
   - In-memory + SQLite history idempotency / missed intervals in unit tests  
-  - Phone binds prototype history SQLite on sign-in (`bindPrototypeHistoryPersistence`)  
+  - Phone binds prototype history SQLite on sign-in (`bindPrototypeHistoryPersistence`, PR #36)  
+  - Red→IR channel fallback without fusion (#28); complete-window → sync JSON builder (#27)  
 - **Still required:** Watch-live estimates from real hardware; journal policy decisions.
 
 ---
@@ -161,3 +164,11 @@ https://github.com/DreamTeamSE/cddapp/issues/
 | `ml-watch-pipeline` (Home link `__DEV__`-only) | Dev sync path, scheduler/BLE sim, integration panel |
 | `ml-recording` | Inspect CSV/JSON; no BP calculation |
 | `archive/cbp-tnet/` | Historical only; not loaded by the app |
+
+## Closed phone follow-ups (Nov 2026)
+
+| Issue / PR | What landed |
+|---|---|
+| [#26](https://github.com/DreamTeamSE/cddapp/issues/26) / [#35](https://github.com/DreamTeamSE/cddapp/pull/35)–[#36](https://github.com/DreamTeamSE/cddapp/pull/36) | Prototype BP history SQLite + bind on sign-in |
+| [#27](https://github.com/DreamTeamSE/cddapp/issues/27) / [#35](https://github.com/DreamTeamSE/cddapp/pull/35) | `CompleteSensorWindow` → `cdd_ppg_imu_recording_v1` builder |
+| [#28](https://github.com/DreamTeamSE/cddapp/issues/28) / [#35](https://github.com/DreamTeamSE/cddapp/pull/35) | Red then IR quality fallback (no fusion) |
