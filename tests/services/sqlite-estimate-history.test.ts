@@ -74,4 +74,5 @@ describe('SQLite prototype estimate history (#26)', () => {
     assert.equal(second.listEstimates().some((e) => e.intervalId === 'iv-gap'), false);
     db.close();
   });
+
 });

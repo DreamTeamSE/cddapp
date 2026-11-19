@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { pickRecording } from '@/services/recordings/pickRecording';
 import { makeDemoSyncRecording, type SyncRecording } from '@/services/recordings/syncContract';
-import { history } from '@/services/anyppg/sessionHistory';
+import { flushHistoryPersistence, history } from '@/services/anyppg/sessionHistory';
 import { inferWatchRecording, type WatchInferenceReport } from '@/services/anyppg/watchInference';
+import { bindPrototypeHistoryPersistence } from '@/services/readings/device-estimate-history';
 
 function formatDebug(report: WatchInferenceReport) {
   return [
@@ -29,18 +30,32 @@ export default function WatchPipelineCard() {
   const [report, setReport] = useState<WatchInferenceReport | null>(null);
   const [error, setError] = useState('');
   const [historyTick, setHistoryTick] = useState(0);
+  const [historyPersisted, setHistoryPersisted] = useState(false);
   const running = useRef(false);
   const cancel = useRef(false);
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
+    void bindPrototypeHistoryPersistence()
+      .then(() => {
+        if (!mounted.current) return;
+        setHistoryPersisted(true);
+        setHistoryTick((n) => n + 1);
+      })
+      .catch((error) => {
+        console.warn('Watch history persistence unavailable', error);
+      });
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') cancel.current = true;
+      if (state !== 'active') {
+        cancel.current = true;
+        void flushHistoryPersistence();
+      }
     });
     return () => {
       mounted.current = false;
       cancel.current = true;
+      void flushHistoryPersistence();
       subscription.remove();
     };
   }, []);
@@ -195,7 +210,7 @@ export default function WatchPipelineCard() {
       )}
 
       <Text style={s.label} key={historyTick}>
-        Prototype session history (in-memory)
+        Prototype session history {historyPersisted ? '(SQLite, survives relaunch)' : '(memory until SQLite opens)'}
       </Text>
       {intervals.length === 0 && <Text style={s.note}>No interval statuses yet.</Text>}
       {intervals.map((item) => (

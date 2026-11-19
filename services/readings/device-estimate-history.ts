@@ -4,6 +4,7 @@
  */
 import type * as SQLite from 'expo-sqlite';
 
+import type { EstimateHistory } from './estimate-history.d.ts';
 import { openEncryptedDatabase } from '../secure-database.ts';
 import {
   createPersistedEstimateHistory,
@@ -12,6 +13,7 @@ import {
 } from './sqlite-estimate-history.ts';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let bindPromise: Promise<EstimateHistory> | null = null;
 
 function openHistoryDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
@@ -27,9 +29,30 @@ function openHistoryDb(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
 }
 
-/** Prototype watch/CSV estimate history that survives app relaunch. */
+/** Standalone persisted store (tests / callers that do not use sessionHistory). */
 export async function openDeviceEstimateHistory(
   options: { modelId?: string } = {},
 ): Promise<PersistedEstimateHistory> {
   return createPersistedEstimateHistory(await openHistoryDb(), options);
+}
+
+/**
+ * Bind the shared AnyPPG `sessionHistory` object to on-device SQLite.
+ * Safe to call repeatedly; hydrates prior estimates so kill/relaunch keeps them.
+ */
+export async function bindPrototypeHistoryPersistence(
+  options: { modelId?: string } = {},
+): Promise<EstimateHistory> {
+  if (!bindPromise) {
+    bindPromise = (async () => {
+      const db = await openHistoryDb();
+      const sessionHistory = await import('../anyppg/sessionHistory.js');
+      await sessionHistory.attachSqlitePersistence(db, options);
+      return sessionHistory.history;
+    })().catch((error) => {
+      bindPromise = null;
+      throw error;
+    });
+  }
+  return bindPromise;
 }
