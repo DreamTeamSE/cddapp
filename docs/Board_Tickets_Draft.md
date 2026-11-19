@@ -2,6 +2,30 @@
 
 Paste these into the project board. Columns are suggestions from the Nov 2026 preprocessing plan. **Do not create DynamoDB tickets here** — a teammate owns that.
 
+## How to add them (Cursor could not write to the private project without your GitHub login)
+
+1. Open the board: https://github.com/orgs/DreamTeamSE/projects/11/views/1  
+2. Click **+ Add item** in the target column (**Ready** or **Backlog**).  
+3. Type the ticket title (e.g. `WATCH-01 — Crop recording…`), press Enter.  
+4. Open the new card → add the body text from the matching section below (copy the **Why / Work / Done when** bullets).  
+5. Optional: convert the draft to a real repo Issue via the card’s “Convert to issue” → choose `DreamTeamSE/cddapp`.
+
+Alternatively create issues first, then drag them onto the board:
+
+```bash
+# one-time
+gh auth login
+
+# example
+gh issue create --repo DreamTeamSE/cddapp \
+  --title "WATCH-01 — Crop recording to motion-selected window before quality/prep" \
+  --body-file - <<'EOF'
+Why: ...
+EOF
+```
+
+Then on the project board: **+ Add item** → search the issue number.
+
 ---
 
 ## Ready
