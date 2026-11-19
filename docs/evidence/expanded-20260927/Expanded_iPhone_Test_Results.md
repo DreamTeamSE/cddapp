@@ -1,5 +1,7 @@
 # Expanded iPhone tests: what passed and what remains
 
+> **Historical (cBP-Tnet era).** Shipping BP inference is **AnyPPG only**. These reports document older synthetic/load tests, not the current watch pipeline.
+
 Reviewed September 27, 2026. The supplied reports record tests on September 25, 2026. These are runs performed by Rithika in the iPhone app; the assistant inspected and recalculated their reports.
 
 ## The main result

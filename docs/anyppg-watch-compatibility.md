@@ -26,7 +26,7 @@ Legacy cBP-Tnet assets are archived under `archive/cbp-tnet/` for historical iPh
 
 ## Filtering and resampling ownership (`anyppg_watch_prep_v1`)
 
-Decided once for the watch path (aligned with PPG Filtering.pdf watch/phone split; shipping model remains AnyPPG):
+Decided once for the watch path (aligned with [`docs/reference/PPG_Filtering.pdf`](reference/PPG_Filtering.pdf) watch/phone split; shipping model remains AnyPPG):
 
 1. **Firmware** delivers provenance-labeled samples (`raw_adc` preferred). Firmware must not silently apply the cBP-Tnet AMPD/Kalman pipeline.
 2. **Phone** owns AnyPPG-compatible resampling to 125 Hz, flat/near-flat rejection **before** dividing by std, and chunk standardization.
