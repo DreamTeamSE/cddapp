@@ -3,7 +3,12 @@
  * Firmware/BLE hardware adapters remain separate; this module is the phone-side glue.
  */
 import { createRequire } from 'node:module';
-import { IntervalScheduler, DEFAULT_SCHEDULER_CONFIG, type SchedulerConfig } from './interval-scheduler.ts';
+
+import type { CompleteSensorWindow } from '../../types/measurement.ts';
+import {
+  buildSyncRecordingFromCompleteWindow,
+  type SyncBuilderMeta,
+} from '../device/sync-recording-builder.ts';
 import {
   encodeRecordingChunks,
   RecordingTransferAssembler,
@@ -11,6 +16,7 @@ import {
   type RecordingChunkEnvelope,
   type TransferStatus,
 } from '../device/recording-transfer.ts';
+import { IntervalScheduler, DEFAULT_SCHEDULER_CONFIG, type SchedulerConfig } from './interval-scheduler.ts';
 
 const require = createRequire(import.meta.url);
 const syncContract = require('../recordings/syncContract.js') as typeof import('../recordings/syncContract');
@@ -37,6 +43,10 @@ export function createPrototypePipeline(options: {
     history,
     motionTrigger: motionTrigger.getMotionTriggerConfig(),
     imuDenoise: imuDenoise.getImuDenoiseConfig(),
+    /** Reassembled BLE window → validated sync JSON (issue #27 phone glue). */
+    buildFromCompleteWindow(window: CompleteSensorWindow, meta: SyncBuilderMeta) {
+      return buildSyncRecordingFromCompleteWindow(window, meta);
+    },
     inspect(recording: unknown) {
       return syncContract.inspectSyncRecording(syncContract.validateRecording(recording));
     },
@@ -77,7 +87,10 @@ export function createPrototypePipeline(options: {
         shouldCancel?: () => boolean;
       },
     ) {
-      const watchInference = require('../anyppg/watchInference.js') as typeof import('../anyppg/watchInference');
+      // Host/Node uses watchInference.js; Metro resolves the .native.ts shim separately.
+      const watchInference = require('../anyppg/watchInference.js') as {
+        runWatchRecording: (input: unknown, options: typeof watchOptions) => Promise<Record<string, unknown>>;
+      };
       return watchInference.runWatchRecording(input, watchOptions);
     },
   };

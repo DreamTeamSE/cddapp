@@ -98,8 +98,9 @@ https://github.com/DreamTeamSE/cddapp/issues/
 - **Validated:**  
   - Host ONNX AnyPPG + legacy CSV regression  
   - **Physical iPhone Release CSV import** matching documented SBP/DBP (see `docs/evidence/ANYPPG_IPHONE_VERIFICATION.md`)  
-  - In-memory history idempotency / missed intervals in unit tests  
-- **Still required:** Persist history across process death if required; watch-live estimates from real hardware; journal policy decisions.
+  - In-memory + SQLite history idempotency / missed intervals in unit tests  
+  - Phone binds prototype history SQLite on sign-in (`bindPrototypeHistoryPersistence`)  
+- **Still required:** Watch-live estimates from real hardware; journal policy decisions.
 
 ---
 

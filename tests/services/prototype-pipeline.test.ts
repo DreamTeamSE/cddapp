@@ -37,3 +37,38 @@ test('prototype pipeline runWatch rejects high-motion without fabricating BP', a
   assert.notEqual(report.status, 'accepted');
   assert.equal(report.estimate, null);
 });
+
+test('prototype pipeline builds sync JSON from a complete sensor window', () => {
+  const pipeline = createPrototypePipeline();
+  const n = 100;
+  const rate = 100;
+  const samples = Array.from({ length: n }, (_, i) => Math.fround(500000 + i));
+  const zeros = Array.from({ length: n }, () => 0.01);
+  const window = {
+    identity: { source: 'bracelet' as const, deviceId: 'd1', acquisitionId: 'a1', windowId: 'w1' },
+    manifest: {
+      contractVersion: 'fixture',
+      packetCount: 1,
+      channels: [
+        { channelId: 'ppg.red', sampleCount: n },
+        { channelId: 'ppg.infrared', sampleCount: n },
+        { channelId: 'imu.ax', sampleCount: n },
+        { channelId: 'imu.ay', sampleCount: n },
+        { channelId: 'imu.az', sampleCount: n },
+      ],
+    },
+    channels: [
+      { channelId: 'ppg.red', samples, unit: 'adc_counts', timing: { sampleRateHz: rate, firstSampleOffsetMs: 0 } },
+      { channelId: 'ppg.infrared', samples, unit: 'adc_counts', timing: { sampleRateHz: rate, firstSampleOffsetMs: 0 } },
+      { channelId: 'imu.ax', samples: zeros, unit: 'm/s^2', timing: { sampleRateHz: rate, firstSampleOffsetMs: 0 } },
+      { channelId: 'imu.ay', samples: zeros, unit: 'm/s^2', timing: { sampleRateHz: rate, firstSampleOffsetMs: 0 } },
+      { channelId: 'imu.az', samples: Array.from({ length: n }, () => 9.81), unit: 'm/s^2', timing: { sampleRateHz: rate, firstSampleOffsetMs: 0 } },
+    ],
+    acquisitionTime: { kind: 'wall-clock' as const, timestampMs: Date.parse('2026-11-09T17:00:00.000Z'), synchronized: true },
+    firstReceivedAtMs: Date.parse('2026-11-09T17:00:00.000Z'),
+    lastReceivedAtMs: Date.parse('2026-11-09T17:00:01.000Z'),
+    diagnostics: { receivedPacketCount: 1, identicalDuplicateCount: 0 },
+  };
+  const recording = pipeline.buildFromCompleteWindow(window, { recordingId: 'pipe-builder-1' }) as { kind: string };
+  assert.equal(recording.kind, pipeline.contract);
+});

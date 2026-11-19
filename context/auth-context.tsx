@@ -1,10 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 
 import { toFriendlyAuthMessage, type AuthService, type AuthSession, type Credentials } from '@/services/auth/auth-service';
 import { createDeviceAuthService } from '@/services/auth/device-auth';
 import { resolveSignedInStatus } from '@/services/auth/session-gate';
+import { flushHistoryPersistence } from '@/services/anyppg/sessionHistory';
 import { activateProfileForUser, deactivateProfile, getOnboardingState } from '@/services/profile/health-profile-store';
+import { bindPrototypeHistoryPersistence } from '@/services/readings/device-estimate-history';
 
 /**
  * loading      → restoring the session at launch (splash stays up)
@@ -50,6 +52,10 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
       isOnboarded: async (userId) => (await getOnboardingState(userId)).completed,
       showProfile: (userId) => activateProfileForUser(userId, next.email),
     });
+    // Prototype BP history is device-local (not journal). Failures stay in-memory only.
+    void bindPrototypeHistoryPersistence().catch((error) => {
+      console.warn('Prototype estimate history could not open SQLite; using memory only.', error);
+    });
     if (current !== generation.current) return;
     setSession(next);
     setStatus(nextStatus);
@@ -59,6 +65,13 @@ export function AuthProvider({ children, service }: { children: React.ReactNode;
     // restoreSession never rejects, so the app cannot be stranded on the splash screen.
     auth.restoreSession().then(applySession);
   }, [auth, applySession]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') void flushHistoryPersistence();
+    });
+    return () => subscription.remove();
+  }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
     status,

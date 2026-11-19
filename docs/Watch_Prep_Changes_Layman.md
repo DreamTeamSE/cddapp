@@ -117,7 +117,7 @@ node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/accept-
 
 ## 7. Tickets (after dedupe)
 
-**Software doable tickets (#26–#28):** SQLite prototype BP history, packet→sync JSON builder stub, and red-then-IR fallback (no fusion) are implemented on the watch-doable branch. Channel fallback is a temporary software stand-in until live red/IR/green comparison on the real watch.
+**Software doable tickets (#26–#28):** SQLite prototype BP history, packet→sync JSON builder stub, and red-then-IR fallback (no fusion) are merged. The phone now opens that SQLite history on sign-in (survives kill/relaunch) and exposes the window→sync JSON builder on the prototype pipeline. Channel fallback is a temporary software stand-in until live red/IR/green comparison on the real watch.
 
 **Still useful open work:** #7–#15 (contract through validation; many need hardware or BLE).
 
