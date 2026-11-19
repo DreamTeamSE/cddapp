@@ -44,14 +44,13 @@ We did **not** wait for live watch data. Everything here runs on synthetic JSON 
 - **Sim → inference hook:** after a simulated BLE upload finishes, an optional callback can run the watch pipeline (tests use a mock; real ONNX stays injectable).  
 - **Board ticket draft:** paste-ready text in `docs/Board_Tickets_Draft.md`.
 
-### Auth branch merge readiness (`feature/auth-onboarding`)
+### Auth / login (Anson’s branch → `main`)
 
-- Merged current **main** (AnyPPG + Android) into the login/onboarding branch.  
-- Fixed conflicts in package / lock / Podfile files.  
-- Kept login extras (`expo-secure-store`, crypto, SQLCipher) **and** main’s newer Expo versions.  
-- Tests on that tip: **63/63** service tests pass, including the **24-hour SQLite PPG cache**.  
-- Details: `docs/AUTH_MERGE_READY.md`.  
-- **PR #5 is still draft** — ready for review after push; not merged to main yet.
+- Fixed merge conflicts between login/onboarding and the AnyPPG work.  
+- **Merged into `main` and pushed** (includes the 24-hour on-phone PPG cache).  
+- Login is still **local-dev** (accounts on the phone) until Cognito is ready.  
+- After pulling `main`, do a fresh native build (`npm run ios:build`).  
+- Details: `docs/AUTH_MERGE_READY.md`.
 
 ### DynamoDB
 
