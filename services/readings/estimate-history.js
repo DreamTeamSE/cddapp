@@ -30,6 +30,7 @@ function createEstimateHistory(options = {}) {
     const {
       recordingId, intervalId, captureStartedAt, sbp, dbp, channel,
       modelHash, preprocessingVersion, qualityStatus, calibrationStatus, sourceKind,
+      signalProvenance, windowStartMs, windowEndMs,
     } = input;
     need(typeof recordingId === 'string' && recordingId, 'recordingId required.');
     need(typeof intervalId === 'string' && intervalId, 'intervalId required.');
@@ -37,6 +38,9 @@ function createEstimateHistory(options = {}) {
     need(Number.isFinite(sbp) && Number.isFinite(dbp), 'sbp/dbp must be finite.');
     need(['red', 'infrared'].includes(channel), 'channel invalid.');
     need(['watch_live', 'imported_csv'].includes(sourceKind), 'sourceKind invalid.');
+    if (signalProvenance !== undefined && signalProvenance !== null) {
+      need(['raw_adc', 'firmware_filtered'].includes(signalProvenance), 'signalProvenance invalid.');
+    }
     // Idempotent on recordingId+channel
     const id = `${recordingId}:${channel}`;
     if (estimates.has(id)) return estimates.get(id);
@@ -55,6 +59,9 @@ function createEstimateHistory(options = {}) {
       qualityStatus,
       calibrationStatus: calibrationStatus ?? 'none',
       sourceKind,
+      signalProvenance: signalProvenance ?? null,
+      windowStartMs: windowStartMs ?? null,
+      windowEndMs: windowEndMs ?? null,
       experimental: true,
       prototypeLabel: 'experimental_prototype_estimate',
       createdAtMs: Date.now(),

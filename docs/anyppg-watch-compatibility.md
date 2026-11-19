@@ -26,12 +26,21 @@ Legacy cBP-Tnet assets are archived under `archive/cbp-tnet/` for historical iPh
 
 ## Filtering and resampling ownership (`anyppg_watch_prep_v1`)
 
-Decided once for the watch path:
+Decided once for the watch path (aligned with PPG Filtering.pdf watch/phone split; shipping model remains AnyPPG):
 
 1. **Firmware** delivers provenance-labeled samples (`raw_adc` preferred). Firmware must not silently apply the cBP-Tnet AMPD/Kalman pipeline.
 2. **Phone** owns AnyPPG-compatible resampling to 125 Hz, flat/near-flat rejection **before** dividing by std, and chunk standardization.
-3. Do not double-filter. If `provenance` is `firmware_filtered`, phone applies only rate conversion + quality gates + chunk norm, and records that fact in estimate provenance.
+3. Do not double-filter. If `provenance` is `firmware_filtered`, phone applies only rate conversion + quality gates + chunk norm, sets `rawUnmodified: false` / `doubleFilterAvoided: true`, and stores `signalProvenance` on the estimate.
 4. Never interpolate across gaps larger than the configured limit just to fill 3750 samples.
+5. **Motion window crop (PDF Stage 5 on phone until firmware owns it):** `runWatchRecording` tries `selectLowMotionSegments` candidates and runs quality/prep only on `[windowStartMs, windowEndMs]`, not always from t₀.
+
+## Host CLI
+
+```bash
+node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/accept-low-motion-32s.json
+```
+
+Exit `0` = accepted estimate, `2` = quality reject, `1` = error.
 
 ## Watch waveform checks still required on hardware
 

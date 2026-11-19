@@ -123,6 +123,31 @@ async function runSoftwareIntegrationChecks(options = {}) {
       if (!Number.isFinite(report.sbp) || !Number.isFinite(report.dbp)) throw new Error('BP missing');
       return { status: report.status, sbp: report.sbp, dbp: report.dbp, processingMs: report.processingMs };
     }));
+
+    results.push(await checkAsync('watch_inference_crops_mixed_motion_to_quiet_window', async () => {
+      const recording = makeDemoSyncRecording({
+        seconds: 42,
+        motion: 'mixed',
+        noisySeconds: 10,
+        recordingId: 'integ-infer-mixed',
+      });
+      const full = assessRecordingQuality(recording);
+      if (full.accepted) throw new Error('Full mixed recording must fail quality without crop');
+      const report = await runWatchRecording(recording, {
+        createAdapter: options.createAdapter,
+        head: options.head,
+        modelSha256: options.modelSha256,
+      });
+      if (report.status !== 'accepted') throw new Error(report.error || report.rejectionReasons?.join('; ') || 'expected accepted after crop');
+      if (!report.selectedWindow || report.selectedWindow.startMs < 9000) {
+        throw new Error('Expected selected window after noisy prefix');
+      }
+      return {
+        status: report.status,
+        windowStartMs: report.selectedWindow.startMs,
+        signalProvenance: report.signalProvenance,
+      };
+    }));
   }
 
   const passed = results.filter((item) => item.passed).length;

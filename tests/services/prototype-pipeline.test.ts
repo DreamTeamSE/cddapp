@@ -23,3 +23,17 @@ test('prototype pipeline composes sync contract, transfer, scheduler, and disabl
   assert.equal(complete, true);
   assert.equal(pipeline.scheduler.ensureDue(Date.parse(fixture.captureStartedAt)).state, 'scheduled');
 });
+
+test('prototype pipeline runWatch rejects high-motion without fabricating BP', async () => {
+  const { makeDemoSyncRecording } = await import('../../services/recordings/syncContract.js');
+  const pipeline = createPrototypePipeline();
+  const recording = makeDemoSyncRecording({ seconds: 32, motion: 'high', recordingId: 'pipe-high-1' });
+  const report = await pipeline.runWatch(recording, {
+    createAdapter: async () => {
+      throw new Error('adapter must not run on rejected motion');
+    },
+    head: { bias: [0, 0], weights: [[0], [0]], featureMean: [0], featureStd: [1] },
+  });
+  assert.notEqual(report.status, 'accepted');
+  assert.equal(report.estimate, null);
+});

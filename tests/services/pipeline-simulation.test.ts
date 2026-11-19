@@ -26,3 +26,20 @@ test('interrupted BLE then retry completes and detects duplicate packets', () =>
   assert.equal(result.complete, true);
   assert.equal(result.duplicateRecording, true);
 });
+
+test('successful capture can invoke injectable watch inference after transfer', () => {
+  let seenId: string | null = null;
+  const sim = createPipelineSimulator({
+    startMs: Date.parse('2026-11-09T20:00:00.000Z'),
+    afterTransferComplete: (recording) => {
+      seenId = recording.recordingId;
+      return { status: 'accepted', sbp: 118, dbp: 76, mock: true };
+    },
+  });
+  const ok = sim.simulateSuccessfulCapture();
+  assert.equal(ok.watchInferenceInvoked, true);
+  assert.equal(ok.watchError, null);
+  assert.ok(seenId);
+  assert.equal((ok.watchReport as { status: string }).status, 'accepted');
+  assert.equal(ok.intervalState, 'accepted');
+});

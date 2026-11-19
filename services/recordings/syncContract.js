@@ -208,19 +208,33 @@ function makeDemoSyncRecording(overrides = {}) {
   const ppgRate = 100;
   const imuRate = 100;
   const seconds = Number.isFinite(overrides.seconds) ? overrides.seconds : 3;
-  const motion = overrides.motion === 'high' ? 'high' : 'low';
-  const {seconds: _seconds, motion: _motion, ...rest} = overrides;
+  const motion = overrides.motion === 'high' ? 'high' : overrides.motion === 'mixed' ? 'mixed' : 'low';
+  const noisySeconds = Number.isFinite(overrides.noisySeconds) ? overrides.noisySeconds : 10;
+  const provenance = overrides.provenance === 'firmware_filtered' ? 'firmware_filtered' : 'raw_adc';
+  const flatline = overrides.flatline === true;
+  const {
+    seconds: _seconds,
+    motion: _motion,
+    noisySeconds: _noisy,
+    provenance: _prov,
+    flatline: _flat,
+    ...rest
+  } = overrides;
   const ppgSamples = [];
   const imuSamples = [];
   for (let i = 0; i < ppgRate * seconds; i++) {
     const t = (i * 1000) / ppgRate;
-    const wave = Math.fround(500000 + 2000 * Math.sin((2 * Math.PI * 1.2 * i) / ppgRate));
-    ppgSamples.push([i, t, wave, Math.fround(wave * 0.98), 0]);
+    const wave = flatline
+      ? Math.fround(100)
+      : Math.fround(500000 + 2000 * Math.sin((2 * Math.PI * 1.2 * i) / ppgRate));
+    ppgSamples.push([i, t, wave, flatline ? Math.fround(100) : Math.fround(wave * 0.98), 0]);
   }
   for (let i = 0; i < imuRate * seconds; i++) {
     const t = (i * 1000) / imuRate;
-    const shake = motion === 'high' ? Math.sin(i / 3) * 4 : 0.05;
-    imuSamples.push([i, t, shake, motion === 'high' ? Math.cos(i / 4) * 4 : -0.02, 9.81, 0.001, -0.002, 0.0, 0]);
+    const inNoisy = motion === 'mixed' ? t < noisySeconds * 1000 : motion === 'high';
+    const high = motion === 'high' || inNoisy;
+    const shake = high ? Math.sin(i / 3) * 4 : 0.05;
+    imuSamples.push([i, t, shake, high ? Math.cos(i / 4) * 4 : -0.02, 9.81, 0.001, -0.002, 0.0, 0]);
   }
   return validateRecording({
     schemaVersion: 1,
@@ -235,8 +249,8 @@ function makeDemoSyncRecording(overrides = {}) {
       sampleRateHz: ppgRate,
       timingSource: 'sample_clock',
       channels: {
-        red: { available: true, wavelengthNm: 660, units: 'adc_counts', provenance: 'raw_adc', adcMin: 0, adcMax: 1048575 },
-        infrared: { available: true, wavelengthNm: 950, units: 'adc_counts', provenance: 'raw_adc', adcMin: 0, adcMax: 1048575 },
+        red: { available: true, wavelengthNm: 660, units: 'adc_counts', provenance, adcMin: 0, adcMax: 1048575 },
+        infrared: { available: true, wavelengthNm: 950, units: 'adc_counts', provenance, adcMin: 0, adcMax: 1048575 },
       },
       samples: ppgSamples,
     },
