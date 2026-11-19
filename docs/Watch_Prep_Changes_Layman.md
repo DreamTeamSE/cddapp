@@ -64,7 +64,7 @@ Code: `standardizeWindow` in [`services/anyppg/core.js`](../services/anyppg/core
 
 ## 3. What the PDF says vs what the app actually runs
 
-**PPG Filtering.pdf** describes:
+**[`docs/reference/PPG_Filtering.pdf`](reference/PPG_Filtering.pdf)** describes:
 
 - **Watch:** validate samples, score motion/quality, pick a clean 30 s window, optionally denoise, then send raw (~100 Hz) data to the phone.  
 - **Phone (older write-up):** steps that match the older **cBP-Tnet** model (Kalman, beat cutting, per-beat normalize).

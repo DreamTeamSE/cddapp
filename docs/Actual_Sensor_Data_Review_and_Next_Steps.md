@@ -102,7 +102,7 @@ open ios/cddapp.xcworkspace
 
 Use the existing Xcode workspace and signing setup, select the physical iPhone, and build the updated app. Keep your customized native project; a clean prebuild is unnecessary. The document picker is a new native dependency, so JavaScript reload alone is insufficient.
 
-Open **Test ML model → Inspect a sensor recording → Choose CSV or JSON**. Choose a file from Files. For the supplied old CSV, expect 1,322 samples, 48.723 seconds and a “Recording needs review” result. No BP number should appear. “Load synthetic example” lets you test the JSON/beat-preview path without using a person's data.
+Open **Home → Inspect a sensor recording → Choose CSV or JSON**. Choose a file from Files. For the supplied old CSV, expect 1,322 samples, 48.723 seconds and a “Recording needs review” result. No BP number should appear. “Load synthetic example” lets you test the JSON path without using a person's data. (The old “Test ML model” / cBP-Tnet screens were removed; shipping BP path is AnyPPG.)
 
 The feature reads the selected file into screen memory and deletes only its temporary app-cache copy. It does not save the waveform or upload it. The original document remains with its provider. “Share diagnostics only” shares aggregate checks, not waveform samples or participant identifiers. Provider/OS cloud handling is separate from this code.
 

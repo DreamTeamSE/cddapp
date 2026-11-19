@@ -21,6 +21,9 @@
 | [evidence/ANYPPG_IPHONE_VERIFICATION.md](evidence/ANYPPG_IPHONE_VERIFICATION.md) | Physical iPhone CSV verification |
 | [evaluation-protocol.md](evaluation-protocol.md) | Accuracy / coverage / battery protocol (#13+) |
 | [Board_Tickets_Draft.md](Board_Tickets_Draft.md) | Extra ticket drafts (many already filed as issues) |
+| [auth-and-onboarding.md](auth-and-onboarding.md) | Login / onboarding (local-dev → Cognito later) |
+| [Actual_Sensor_Data_Review_and_Next_Steps.md](Actual_Sensor_Data_Review_and_Next_Steps.md) | Early sensor CSV review notes |
+| [reference/PPG_Filtering.pdf](reference/PPG_Filtering.pdf) | Watch vs phone filtering design PDF |
 
 ## Historical (do not use for shipping)
 

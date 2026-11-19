@@ -30,6 +30,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# JetBrains / IDE (do not commit machine-local caches)
+.idea/
+
+# Local scratch from cleanups / worktrees
+/documentation_moved_tmp/
+/.worktrees/
+
 # local env files
 .env*.local
 

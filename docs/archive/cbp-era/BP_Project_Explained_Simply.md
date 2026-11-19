@@ -6,9 +6,9 @@ Original test walkthrough: September 25, 2026. Current-data update: October 7, 2
 
 ## Latest update: actual hardware data
 
-We have now inspected the first uploaded red/infrared CSV and collection code. The 1,322 logged pairs span 48.723 seconds, with uneven print timing. Their true acquisition rate is not established. The new recording screen inspects that CSV, and a diagnostic firmware/logger update preserves original counts and removes a discarded read. See [the actual-data guide](Actual_Sensor_Data_Review_and_Next_Steps.md) before trying the file in a model.
+We have now inspected the first uploaded red/infrared CSV and collection code. The 1,322 logged pairs span 48.723 seconds, with uneven print timing. Their true acquisition rate is not established. The new recording screen inspects that CSV, and a diagnostic firmware/logger update preserves original counts and removes a discarded read. See [the actual-data guide](../../Actual_Sensor_Data_Review_and_Next_Steps.md) before trying the file in a model.
 
-The four-beat test described below is a historical first test. Later synthetic full/rolling-window reports are summarized in [Expanded iPhone Test Results](Expanded_iPhone_Test_Results.md). Those broader software checks still do not establish live sensor compatibility.
+The four-beat test described below is a historical first test. Later synthetic full/rolling-window reports are summarized in [Expanded iPhone Test Results](../../evidence/expanded-20260927/Expanded_iPhone_Test_Results.md). Those broader software checks still do not establish live sensor compatibility.
 
 ## 1. What have we actually built?
 

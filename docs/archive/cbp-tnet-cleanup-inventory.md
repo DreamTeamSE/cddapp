@@ -4,6 +4,9 @@
 **Date:** 2026-11-09  
 **Policy:** AnyPPG is the only active BP inference model. Historical cBP-Tnet research is archived, not deleted from project history.
 
+
+
+> **Path update (Nov 2026):** Pre-AnyPPG write-ups now live under `docs/archive/cbp-era/`. The old top-level `documentation/` folder was removed. See `docs/archive/cbp-era/README.md`.
 ## A. Remove from active application (obsolete inference UI/services)
 
 These are only used by the old cBP-Tnet smoke/expanded/chain/profile screens and are safe to delete from the live app tree after references are cleared.
