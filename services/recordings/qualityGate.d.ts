@@ -14,6 +14,9 @@ export type QualityAssessment = {
   rejectionReasons: string[];
   motionRms: number | null;
   motionRmsMax: number;
+  windowStartMs: number | null;
+  windowEndMs: number | null;
+  signalProvenance: 'raw_adc' | 'firmware_filtered';
   qualityLabel: 'accepted_for_anyppg_input' | 'rejected';
   bpAccuracyConfidence: null;
   hardwareValidated: false;
@@ -26,22 +29,42 @@ export type PreparedWindow = {
   channel: 'red' | 'infrared';
   samples: Float64Array;
   normalized: Float32Array;
-  rawUnmodified: true;
+  signalProvenance: 'raw_adc' | 'firmware_filtered';
+  rawUnmodified: boolean;
+  doubleFilterAvoided: boolean;
 };
 
 export function assessRecordingQuality(
   input: SyncRecording,
-  options?: { motionRmsMax?: number; channel?: 'red' | 'infrared' },
+  options?: {
+    motionRmsMax?: number;
+    channel?: 'red' | 'infrared';
+    windowStartMs?: number | null;
+    windowEndMs?: number | null;
+  },
 ): QualityAssessment;
 
 export function prepareAcceptedWindow(
   input: SyncRecording,
-  options?: { motionRmsMax?: number; channel?: 'red' | 'infrared' },
+  options?: {
+    motionRmsMax?: number;
+    channel?: 'red' | 'infrared';
+    windowStartMs?: number | null;
+    windowEndMs?: number | null;
+  },
 ): PreparedWindow;
+
+export function sliceRecordingByTimeRange(
+  input: SyncRecording,
+  startMs: number,
+  endMs: number,
+): SyncRecording;
 
 export function channelValues(
   recording: SyncRecording,
   channel: 'red' | 'infrared',
+  windowStartMs?: number | null,
+  windowEndMs?: number | null,
 ): { t: number; v: number }[];
 
 export function accelMotionRms(

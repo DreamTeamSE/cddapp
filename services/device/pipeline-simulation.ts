@@ -28,6 +28,8 @@ export function createPipelineSimulator(options: {
   startMs?: number;
   schedulerConfig?: SchedulerConfig;
   maxQueuedRecordings?: number;
+  /** Optional host hook: after BLE transfer completes, run watch inference (injectable; no ONNX in this module). */
+  afterTransferComplete?: (recording: ReturnType<typeof makeDemoSyncRecording>) => unknown | Promise<unknown>;
 } = {}) {
   const clock = options.clock || createClock(options.startMs);
   const scheduler = new IntervalScheduler(options.schedulerConfig || DEFAULT_SCHEDULER_CONFIG);
@@ -79,13 +81,26 @@ export function createPipelineSimulator(options: {
       if (status.status === 'complete') complete = status;
     }
     scheduler.markPendingProcessing(interval.intervalId, clock.nowMs());
-    scheduler.markAccepted(interval.intervalId, clock.nowMs());
+    let watchReport: unknown = null;
+    let watchError: string | null = null;
+    if (options.afterTransferComplete) {
+      try {
+        watchReport = options.afterTransferComplete(recording);
+      } catch (error) {
+        watchError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    if (!watchError) scheduler.markAccepted(interval.intervalId, clock.nowMs());
+    else scheduler.markFailed(interval.intervalId, watchError, clock.nowMs());
     return log('capture_success', {
       intervalId: interval.intervalId,
       recordingId: recording.recordingId,
       chunkCount: chunks.length,
       transferComplete: complete?.status === 'complete',
       intervalState: scheduler.get(interval.intervalId)?.state,
+      watchInferenceInvoked: Boolean(options.afterTransferComplete),
+      watchReport,
+      watchError,
     });
   }
 

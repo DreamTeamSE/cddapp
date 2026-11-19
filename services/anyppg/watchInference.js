@@ -1,8 +1,9 @@
 'use strict';
 /**
- * Watch-path orchestration: motion selection → quality gate → AnyPPG window prep.
+ * Watch-path orchestration: motion selection → crop window → quality gate → AnyPPG prep.
  * Native ONNX execution is injected by watchInference.native.ts.
  * Never fabricates BP when quality rejects. SparkFun CSV is not accepted here.
+ * PDF Stage 5: try motion-selected 30 s windows (best RMS first) before giving up.
  */
 const {validateRecording, CONTRACT, PREPROCESSING_VERSION} = require('../recordings/syncContract');
 const {assessRecordingQuality, prepareAcceptedWindow} = require('../recordings/qualityGate');
@@ -27,7 +28,7 @@ function recordRejection(recording, reasons, status = 'failed') {
 
 /**
  * @param {object} input sync recording
- * @param {{createAdapter: Function, shouldCancel?: Function, channel?: 'red'|'infrared', motionRmsMax?: number}} options
+ * @param {{createAdapter: Function, shouldCancel?: Function, channel?: 'red'|'infrared', motionRmsMax?: number, head?: object, modelSha256?: string|null}} options
  */
 async function runWatchRecording(input, options) {
   const started = Date.now();
@@ -69,34 +70,59 @@ async function runWatchRecording(input, options) {
       status: 'rejected',
       qualityDecision: 'rejected',
       rejectionReasons: ['imu:no_low_motion_candidate'],
+      selectedWindow: null,
       processingMs: Date.now() - started,
       estimate: null,
       error: reason,
     };
   }
 
-  const assessment = assessRecordingQuality(recording, {
-    channel: options.channel ?? 'red',
-    motionRmsMax: options.motionRmsMax ?? 0.35,
-  });
-  if (!assessment.accepted) {
-    const reason = recordRejection(recording, assessment.rejectionReasons, 'failed');
+  const channel = options.channel ?? 'red';
+  const motionRmsMax = options.motionRmsMax ?? 0.35;
+  let assessment = null;
+  let prepared = null;
+  let selectedWindow = null;
+  const windowAttempts = [];
+
+  for (const candidate of motion.selected) {
+    const windowOpts = {
+      channel,
+      motionRmsMax,
+      windowStartMs: candidate.startMs,
+      windowEndMs: candidate.endMs,
+    };
+    const attempt = assessRecordingQuality(recording, windowOpts);
+    windowAttempts.push({
+      startMs: candidate.startMs,
+      endMs: candidate.endMs,
+      motionRms: candidate.motionRms,
+      accepted: attempt.accepted,
+      rejectionReasons: attempt.rejectionReasons,
+    });
+    if (!attempt.accepted) continue;
+    assessment = attempt;
+    selectedWindow = { startMs: candidate.startMs, endMs: candidate.endMs, motionRms: candidate.motionRms };
+    prepared = prepareAcceptedWindow(recording, windowOpts);
+    break;
+  }
+
+  if (!assessment || !prepared || !selectedWindow) {
+    const reasons = windowAttempts.length
+      ? windowAttempts.flatMap((a) => a.rejectionReasons.map((r) => `window[${a.startMs}-${a.endMs}]:${r}`))
+      : ['imu:no_quality_window'];
+    const reason = recordRejection(recording, reasons, 'failed');
     return {
       ...debugBase,
       status: 'rejected',
       qualityDecision: 'rejected',
-      rejectionReasons: assessment.rejectionReasons,
-      motionRms: assessment.motionRms,
+      rejectionReasons: reasons,
+      windowAttempts,
+      selectedWindow: null,
       processingMs: Date.now() - started,
       estimate: null,
       error: reason,
     };
   }
-
-  const prepared = prepareAcceptedWindow(recording, {
-    channel: assessment.channel,
-    motionRmsMax: options.motionRmsMax ?? 0.35,
-  });
 
   let adapter;
   let cleanupFailure;
@@ -128,6 +154,8 @@ async function runWatchRecording(input, options) {
       qualityDecision: 'accepted_for_anyppg_input',
       rejectionReasons: [],
       motionRms: assessment.motionRms,
+      selectedWindow,
+      signalProvenance: prepared.signalProvenance,
       processingMs: Date.now() - started,
       estimate: null,
       error: message,
@@ -146,6 +174,9 @@ async function runWatchRecording(input, options) {
     qualityStatus: 'accepted',
     calibrationStatus: 'none',
     sourceKind: 'watch_live',
+    signalProvenance: prepared.signalProvenance,
+    windowStartMs: selectedWindow.startMs,
+    windowEndMs: selectedWindow.endMs,
   });
 
   return {
@@ -155,6 +186,9 @@ async function runWatchRecording(input, options) {
     rejectionReasons: [],
     motionRms: assessment.motionRms,
     channel: assessment.channel,
+    selectedWindow,
+    signalProvenance: prepared.signalProvenance,
+    windowAttempts,
     inferenceMs,
     processingMs: Date.now() - started,
     estimate,

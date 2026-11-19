@@ -16,6 +16,9 @@ export type PrototypeEstimate = {
   qualityStatus: 'accepted';
   calibrationStatus: string;
   sourceKind: EstimateSourceKind;
+  signalProvenance: 'raw_adc' | 'firmware_filtered' | null;
+  windowStartMs: number | null;
+  windowEndMs: number | null;
   experimental: true;
   prototypeLabel: 'experimental_prototype_estimate';
   createdAtMs: number;
@@ -42,6 +45,9 @@ export type EstimateHistory = {
     qualityStatus: 'accepted' | 'rejected';
     calibrationStatus?: string;
     sourceKind: EstimateSourceKind;
+    signalProvenance?: 'raw_adc' | 'firmware_filtered' | null;
+    windowStartMs?: number | null;
+    windowEndMs?: number | null;
   }) => PrototypeEstimate;
   markMissed: (intervalId: string, reason: string, nowMs?: number) => IntervalHistoryRecord;
   markFailed: (intervalId: string, reason: string, nowMs?: number) => IntervalHistoryRecord;

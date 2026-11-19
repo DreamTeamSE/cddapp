@@ -62,6 +62,24 @@ export function createPrototypePipeline(options: {
     acceptBleChunk(envelope: RecordingChunkEnvelope, nowMs?: number): TransferStatus {
       return transfer.accept(envelope, nowMs);
     },
+    /**
+     * Quality-gated AnyPPG watch path. Pass createAdapter + head from the host/native layer.
+     * Does not fabricate BP when quality rejects.
+     */
+    async runWatch(
+      input: unknown,
+      watchOptions: {
+        createAdapter: () => Promise<{ run: (normalized: Float32Array) => Promise<{ features: Float32Array; inferenceMs: number }>; release: () => Promise<void> }>;
+        head: unknown;
+        modelSha256?: string | null;
+        channel?: 'red' | 'infrared';
+        motionRmsMax?: number;
+        shouldCancel?: () => boolean;
+      },
+    ) {
+      const watchInference = require('../anyppg/watchInference.js') as typeof import('../anyppg/watchInference');
+      return watchInference.runWatchRecording(input, watchOptions);
+    },
   };
 }
 
