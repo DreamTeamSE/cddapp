@@ -148,6 +148,23 @@ async function runSoftwareIntegrationChecks(options = {}) {
         signalProvenance: report.signalProvenance,
       };
     }));
+
+    results.push(await checkAsync('watch_inference_falls_back_to_infrared_when_red_flat', async () => {
+      const recording = makeDemoSyncRecording({
+        seconds: 32,
+        motion: 'low',
+        flatlineChannels: ['red'],
+        recordingId: 'integ-infer-ir-fallback',
+      });
+      const report = await runWatchRecording(recording, {
+        createAdapter: options.createAdapter,
+        head: options.head,
+        modelSha256: options.modelSha256,
+      });
+      if (report.status !== 'accepted') throw new Error(report.error || report.rejectionReasons?.join('; ') || 'expected IR fallback accept');
+      if (report.channel !== 'infrared') throw new Error('Expected infrared channel after red flatline');
+      return { status: report.status, channel: report.channel, channelPolicy: report.channelPolicy };
+    }));
   }
 
   const passed = results.filter((item) => item.passed).length;

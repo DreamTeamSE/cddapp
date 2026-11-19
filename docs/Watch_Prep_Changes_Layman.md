@@ -117,7 +117,9 @@ node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/accept-
 
 ## 7. Tickets (after dedupe)
 
-**Still useful open work:** #7–#15 (contract through validation), plus #26 (persist BP history), #27 (packet→JSON builder), #28 (red→IR fallback).
+**Software doable tickets (#26–#28):** SQLite prototype BP history, packet→sync JSON builder stub, and red-then-IR fallback (no fusion) are implemented on the watch-doable branch. Channel fallback is a temporary software stand-in until live red/IR/green comparison on the real watch.
+
+**Still useful open work:** #7–#15 (contract through validation; many need hardware or BLE).
 
 **Closed as done or duplicate:** #19–#25 (prep work), #29 (docs dup of #16), #30 (KAN-20 on main), #31 (dup of #13–#15), #32 (cBP archived).
 
@@ -125,4 +127,4 @@ node tools/anyppg/run-watch-recording.cjs tests/fixtures/sync-recordings/accept-
 
 ## 8. What’s still waiting on live watch data
 
-Polarity, channel pick, SQI thresholds, NLMS A/B, retry spacing, wrist vs finger / cuff, real BLE, 15-minute field schedule.
+Polarity, clinical channel pick, SQI thresholds, NLMS A/B, retry spacing, wrist vs finger / cuff, real BLE, 15-minute field schedule.
