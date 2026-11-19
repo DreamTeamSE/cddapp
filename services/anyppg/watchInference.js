@@ -27,6 +27,25 @@ function recordRejection(recording, reasons, status = 'failed') {
 }
 
 /**
+ * Prefer red, then infrared. No multi-channel fusion (issue #28).
+ * Pinning options.channel disables fallback.
+ * @param {object} recording
+ * @param {'red'|'infrared'|undefined} preferred
+ * @returns {Array<'red'|'infrared'>}
+ */
+function channelsToTry(recording, preferred) {
+  if (preferred === 'red' || preferred === 'infrared') {
+    need(recording.ppg.channels[preferred].available, 'Requested PPG channel is not available.');
+    return [preferred];
+  }
+  const order = [];
+  if (recording.ppg.channels.red.available) order.push('red');
+  if (recording.ppg.channels.infrared.available) order.push('infrared');
+  need(order.length > 0, 'At least one PPG channel must be available.');
+  return order;
+}
+
+/**
  * @param {object} input sync recording
  * @param {{createAdapter: Function, shouldCancel?: Function, channel?: 'red'|'infrared', motionRmsMax?: number, head?: object, modelSha256?: string|null}} options
  */
@@ -61,6 +80,7 @@ async function runWatchRecording(input, options) {
     newWatchHardwareValidated: false,
     sensorCompatibilityVerified: false,
     bpAccuracyEvaluated: false,
+    channelPolicy: 'red_then_infrared_no_fusion',
   };
 
   if (motion.allBad) {
@@ -77,33 +97,38 @@ async function runWatchRecording(input, options) {
     };
   }
 
-  const channel = options.channel ?? 'red';
+  const channelOrder = channelsToTry(recording, options.channel);
   const motionRmsMax = options.motionRmsMax ?? 0.35;
   let assessment = null;
   let prepared = null;
   let selectedWindow = null;
   const windowAttempts = [];
 
+  // Motion candidates outer, channel preference inner: red first, then IR on the same window.
   for (const candidate of motion.selected) {
-    const windowOpts = {
-      channel,
-      motionRmsMax,
-      windowStartMs: candidate.startMs,
-      windowEndMs: candidate.endMs,
-    };
-    const attempt = assessRecordingQuality(recording, windowOpts);
-    windowAttempts.push({
-      startMs: candidate.startMs,
-      endMs: candidate.endMs,
-      motionRms: candidate.motionRms,
-      accepted: attempt.accepted,
-      rejectionReasons: attempt.rejectionReasons,
-    });
-    if (!attempt.accepted) continue;
-    assessment = attempt;
-    selectedWindow = { startMs: candidate.startMs, endMs: candidate.endMs, motionRms: candidate.motionRms };
-    prepared = prepareAcceptedWindow(recording, windowOpts);
-    break;
+    for (const channel of channelOrder) {
+      const windowOpts = {
+        channel,
+        motionRmsMax,
+        windowStartMs: candidate.startMs,
+        windowEndMs: candidate.endMs,
+      };
+      const attempt = assessRecordingQuality(recording, windowOpts);
+      windowAttempts.push({
+        startMs: candidate.startMs,
+        endMs: candidate.endMs,
+        motionRms: candidate.motionRms,
+        channel,
+        accepted: attempt.accepted,
+        rejectionReasons: attempt.rejectionReasons,
+      });
+      if (!attempt.accepted) continue;
+      assessment = attempt;
+      selectedWindow = { startMs: candidate.startMs, endMs: candidate.endMs, motionRms: candidate.motionRms };
+      prepared = prepareAcceptedWindow(recording, windowOpts);
+      break;
+    }
+    if (assessment && prepared && selectedWindow) break;
   }
 
   if (!assessment || !prepared || !selectedWindow) {

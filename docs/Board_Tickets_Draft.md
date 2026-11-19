@@ -15,9 +15,9 @@ Many draft tickets were filed as GitHub issues. **Duplicates were closed** Nov 1
 | [#13](https://github.com/DreamTeamSE/cddapp/issues/13) | Accuracy / coverage / battery | Backlog |
 | [#14](https://github.com/DreamTeamSE/cddapp/issues/14) | Motion-triggered capture | Backlog |
 | [#15](https://github.com/DreamTeamSE/cddapp/issues/15) | IMU denoise experiment | Backlog |
-| [#26](https://github.com/DreamTeamSE/cddapp/issues/26) | Persist BP history in SQLite | Backlog |
-| [#27](https://github.com/DreamTeamSE/cddapp/issues/27) | Packet → sync JSON builder | Backlog |
-| [#28](https://github.com/DreamTeamSE/cddapp/issues/28) | Red then IR fallback | Backlog |
+| [#26](https://github.com/DreamTeamSE/cddapp/issues/26) | Persist BP history in SQLite | Done (software) |
+| [#27](https://github.com/DreamTeamSE/cddapp/issues/27) | Packet → sync JSON builder | Done (software stub) |
+| [#28](https://github.com/DreamTeamSE/cddapp/issues/28) | Red then IR fallback | Done (software stand-in) |
 
 ## Closed (done or merged duplicate)
 

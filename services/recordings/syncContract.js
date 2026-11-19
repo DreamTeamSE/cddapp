@@ -212,22 +212,30 @@ function makeDemoSyncRecording(overrides = {}) {
   const noisySeconds = Number.isFinite(overrides.noisySeconds) ? overrides.noisySeconds : 10;
   const provenance = overrides.provenance === 'firmware_filtered' ? 'firmware_filtered' : 'raw_adc';
   const flatline = overrides.flatline === true;
+  const flatlineChannels = new Set(
+    Array.isArray(overrides.flatlineChannels)
+      ? overrides.flatlineChannels
+      : flatline
+        ? ['red', 'infrared']
+        : [],
+  );
   const {
     seconds: _seconds,
     motion: _motion,
     noisySeconds: _noisy,
     provenance: _prov,
     flatline: _flat,
+    flatlineChannels: _flatChannels,
     ...rest
   } = overrides;
   const ppgSamples = [];
   const imuSamples = [];
   for (let i = 0; i < ppgRate * seconds; i++) {
     const t = (i * 1000) / ppgRate;
-    const wave = flatline
-      ? Math.fround(100)
-      : Math.fround(500000 + 2000 * Math.sin((2 * Math.PI * 1.2 * i) / ppgRate));
-    ppgSamples.push([i, t, wave, flatline ? Math.fround(100) : Math.fround(wave * 0.98), 0]);
+    const wave = Math.fround(500000 + 2000 * Math.sin((2 * Math.PI * 1.2 * i) / ppgRate));
+    const red = flatlineChannels.has('red') ? Math.fround(100) : wave;
+    const ir = flatlineChannels.has('infrared') ? Math.fround(100) : Math.fround(wave * 0.98);
+    ppgSamples.push([i, t, red, ir, 0]);
   }
   for (let i = 0; i < imuRate * seconds; i++) {
     const t = (i * 1000) / imuRate;

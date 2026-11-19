@@ -148,7 +148,12 @@ function assessRecordingQuality(input, options = {}) {
   const windowStartMs = options.windowStartMs ?? null;
   const windowEndMs = options.windowEndMs ?? null;
   const reasons = [];
-  if (!schema.schemaAccepted) reasons.push(...schema.blockers.map((b) => 'schema:' + b));
+  // Flatline on the unused PPG channel must not block red→IR fallback (#28).
+  const otherChannel = preferredChannel === 'red' ? 'infrared' : 'red';
+  const schemaBlockers = schema.blockers.filter(
+    (b) => !b.includes(`PPG ${otherChannel} channel is completely flat`),
+  );
+  if (schemaBlockers.length) reasons.push(...schemaBlockers.map((b) => 'schema:' + b));
 
   const available = {
     red: recording.ppg.channels.red.available,
