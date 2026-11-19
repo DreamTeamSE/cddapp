@@ -1,4 +1,6 @@
+import { PillButton } from '@/components/auth/auth-ui';
 import SkinTonePicker from '@/components/skintone-picker';
+import { useAuth, useSignOutHandler } from '@/context/auth-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { ComponentProps, useEffect, useState } from 'react';
 import {
@@ -15,7 +17,8 @@ import {
   View,
 } from 'react-native';
 // If the @ alias fails, use relative path: import { ... } from '../../services/database';
-import { getProfile, initDatabase, saveProfile, UserProfile } from '@/services/database';
+import { getProfile, initDatabase, UserProfile } from '@/services/database';
+import { saveProfileTabEdits } from '@/services/profile/health-profile-store';
 
 const INITIAL_USER: UserProfile = {
   firstName: 'First',
@@ -79,6 +82,8 @@ function Header() {
 }
 
 export default function ProfilePage() {
+  const { session } = useAuth();
+  const handleSignOut = useSignOutHandler();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(INITIAL_USER);
 
@@ -100,7 +105,7 @@ export default function ProfilePage() {
   const handleToggleEdit = async () => {
     if (isEditing) {
       try {
-        await saveProfile(profile);
+        if (session) setProfile(await saveProfileTabEdits(session.userId, session.email, profile));
       } catch (err) {
         console.error("Save Error:", err);
       }
@@ -226,6 +231,10 @@ export default function ProfilePage() {
           </View>
         </View>
         
+        <View style={styles.section}>
+          <PillButton label="Sign out" variant="secondary" onPress={handleSignOut} />
+        </View>
+
         <View style={{ height: 60 }} />
     </ScrollView>
     </TouchableWithoutFeedback>
